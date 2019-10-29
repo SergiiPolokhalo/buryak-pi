@@ -19,7 +19,8 @@ entity cpld_kbd is
 	O_RESET		: out std_logic;
 	O_TURBO		: out std_logic;
 	O_MAGICK	: out std_logic;
-	O_SPECIAL	: out std_logic			
+	
+	O_JOY : out std_logic_vector(4 downto 0)
 );
 end cpld_kbd;
 
@@ -32,11 +33,12 @@ architecture RTL of cpld_kbd is
 	 signal reset   : std_logic := '0';
 	 signal turbo   : std_logic := '0';
 	 signal magick  : std_logic := '0';
-	 signal special : std_logic := '0';
 	 
 	 -- spi
 	 signal spi_do_valid : std_logic := '0';
 	 signal spi_do : std_logic_vector(15 downto 0);
+	 
+	 signal joy : std_logic_vector(4 downto 0);
 
 begin
 
@@ -77,7 +79,10 @@ begin
 				when X"03" => kb_data(23 downto 16) <= spi_do (7 downto 0);
 				when X"04" => kb_data(31 downto 24) <= spi_do (7 downto 0);
 				when X"05" => kb_data(39 downto 32) <= spi_do (7 downto 0);	
-				when X"06" => reset <= spi_do(0); turbo <= spi_do(1); magick <= spi_do(2); special <= spi_do(3);
+				when X"06" => reset <= spi_do(0); 
+								  turbo <= spi_do(1); 
+								  magick <= spi_do(2); 
+								  joy <= spi_do(7 downto 3);
 				when others => null;
 			end case;	
 		end if;
@@ -90,7 +95,7 @@ begin
 		O_RESET <= not(reset);
 		O_MAGICK <= not(magick);
 		O_TURBO <= not(turbo);
-		O_SPECIAL <= not(special);
+		O_JOY <= joy;
 	end if;
 end process;
 

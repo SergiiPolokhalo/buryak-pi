@@ -162,10 +162,12 @@ architecture rtl of firmware_top is
 	signal divmmc_sd_cs_n : std_logic;
 	signal divmmc_wr : std_logic;
 	
-	signal kb : std_logic_vector(4 downto 0);
+	signal kb : std_logic_vector(4 downto 0) := "11111";
+	signal joy : std_logic_vector(4 downto 0) := "11111";
 	signal nmi : std_logic;
 	signal i_vga : std_logic_vector(2 downto 0) := "000";
 	signal reset : std_logic;
+	signal turbo : std_logic; -- TODO
 
 begin
 
@@ -256,11 +258,12 @@ begin
 	
 	-- read ports by CPU
 	D(7 downto 0) <= 
-		buf_md(7 downto 0) when n_is_ram = '0' and N_RD = '0' else -- MD buf	
-		port_7ffd when port_read = '1' and A(15)='0' and A(1)='0' else -- #7FFD
-		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE
-		divmmc_do when divmmc_wr = '1' else -- divMMC
-		attr_r when port_read = '1' and A(7 downto 0) = "11111111" else -- #FF
+		buf_md(7 downto 0) when n_is_ram = '0' and N_RD = '0' else 		 -- MD buf	
+		port_7ffd when port_read = '1' and A(15)='0' and A(1)='0' else  -- #7FFD - system port 
+		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
+		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
+		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
+		attr_r when port_read = '1' and A(7 downto 0) = "11111111" else -- #FF - attributes
 		"ZZZZZZZZ";
 
 	divmmc_enable <= '1';
@@ -525,9 +528,9 @@ begin
 		AVR_SS => KEY_SS,
 		
 		O_RESET => reset,
-		O_TURBO => open,
-		O_SPECIAL => open,
-		O_MAGICK => nmi
+		O_TURBO => turbo,
+		O_MAGICK => nmi,
+		O_JOY => joy
 	);
 	
 	-- scandoubler
