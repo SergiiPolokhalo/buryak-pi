@@ -37,7 +37,7 @@
 
 
 set_global_assignment -name FAMILY MAX7000AE
-set_global_assignment -name DEVICE "EPM7512AETC144-10"
+set_global_assignment -name DEVICE "EPM7512AETC144-12"
 set_global_assignment -name TOP_LEVEL_ENTITY firmware_top
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION "13.0 SP1"
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "01:55:00  JULY 10, 2019"
@@ -90,8 +90,8 @@ set_global_assignment -name SLOW_SLEW_RATE OFF
 set_global_assignment -name FORCE_FITTER_TO_AVOID_PERIPHERY_PLACEMENT_WARNINGS OFF
 
 set_location_assignment PIN_53 -to AY_BC1
-set_location_assignment PIN_54 -to AY_BDIR
-set_location_assignment PIN_49 -to BEEPER
+set_location_assignment PIN_49 -to AY_BDIR
+set_location_assignment PIN_54 -to BEEPER
 set_location_assignment PIN_62 -to MD[2]
 set_location_assignment PIN_118 -to MD[1]
 set_location_assignment PIN_111 -to MD[0]
@@ -158,7 +158,7 @@ set_location_assignment PIN_6 -to A[10]
 set_location_assignment PIN_8 -to A[11]
 set_location_assignment PIN_125 -to CLK28
 set_location_assignment PIN_7 -to N_ROMCS
-set_location_assignment PIN_38 -to SD_DI
+set_location_assignment PIN_37 -to SD_DI
 set_location_assignment PIN_39 -to SD_CLK
 set_location_assignment PIN_40 -to SD_DO
 
@@ -168,18 +168,13 @@ set_global_assignment -name MAX7000_DEVICE_IO_STANDARD "3.3-V LVTTL"
 set_location_assignment PIN_19 -to A[5]
 
 
-set_global_assignment -name VHDL_FILE vga_pal.vhd
-set_global_assignment -name VHDL_FILE spi_slave.vhd
-set_global_assignment -name VHDL_FILE cpld_kbd.vhd
-set_global_assignment -name VHDL_FILE divmmc.vhd
-set_global_assignment -name VHDL_FILE firmware_top.vhd
 set_location_assignment PIN_12 -to ROM_A[14]
 set_location_assignment PIN_14 -to ROM_A[15]
-set_location_assignment PIN_37 -to N_SD_CS
-set_location_assignment PIN_55 -to KEY_SCK
-set_location_assignment PIN_56 -to KEY_MISO
-set_location_assignment PIN_60 -to KEY_MOSI
-set_location_assignment PIN_61 -to KEY_SS
+set_location_assignment PIN_38 -to N_SD_CS
+set_location_assignment PIN_61 -to KEY_SCK
+set_location_assignment PIN_60 -to KEY_MISO
+set_location_assignment PIN_56 -to KEY_MOSI
+set_location_assignment PIN_55 -to KEY_SS
 set_location_assignment PIN_72 -to VD[3]
 set_location_assignment PIN_74 -to VD[4]
 set_location_assignment PIN_75 -to VD[2]
@@ -207,11 +202,18 @@ set_location_assignment PIN_100 -to VA[5]
 set_location_assignment PIN_127 -to N_BTN_NMI
 set_location_assignment PIN_128 -to SD_DETECT
 set_location_assignment PIN_32 -to N_ROMWE
-set_location_assignment PIN_101 -to VGA_R[0]
-set_location_assignment PIN_102 -to VGA_R[1]
-set_location_assignment PIN_103 -to VGA_B[0]
-set_location_assignment PIN_106 -to VGA_B[1]
-set_location_assignment PIN_107 -to VGA_G[0]
-set_location_assignment PIN_108 -to VGA_G[1]
-set_location_assignment PIN_109 -to VGA_VSYNC
-set_location_assignment PIN_110 -to VGA_HSYNC
+set_location_assignment PIN_110 -to VGA_R[0]
+set_location_assignment PIN_109 -to VGA_R[1]
+set_location_assignment PIN_106 -to VGA_B[0]
+set_location_assignment PIN_103 -to VGA_B[1]
+set_location_assignment PIN_108 -to VGA_G[0]
+set_location_assignment PIN_107 -to VGA_G[1]
+set_location_assignment PIN_101 -to VGA_VSYNC
+set_location_assignment PIN_102 -to VGA_HSYNC
+
+set_global_assignment -name VHDL_FILE scan_converter.vhd
+set_global_assignment -name VHDL_FILE vga_pal.vhd
+set_global_assignment -name VHDL_FILE spi_slave.vhd
+set_global_assignment -name VHDL_FILE cpld_kbd.vhd
+set_global_assignment -name VHDL_FILE divmmc.vhd
+set_global_assignment -name VHDL_FILE firmware_top.vhd

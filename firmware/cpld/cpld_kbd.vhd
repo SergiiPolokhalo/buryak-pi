@@ -4,17 +4,16 @@ use IEEE.std_logic_arith.conv_integer;
 use IEEE.numeric_std.all;
 
 entity cpld_kbd is
-	port
-	(
-	 CLK	     : in std_logic;
+port (
+	CLK	     : in std_logic;
 
-         A           : in std_logic_vector(15 downto 8); -- address bus for kbd
-         KB          : out std_logic_vector(4 downto 0) := "11111"; -- data bus for kbd
+	A           : in std_logic_vector(15 downto 8); -- address bus for kbd
+	KB          : out std_logic_vector(4 downto 0) := "11111"; -- data bus for kbd
 
-         AVR_MOSI    : in std_logic;
-         AVR_MISO    : out std_logic;
-         AVR_SCK     : in std_logic;
-			AVR_SS      : in std_logic;
+	AVR_MOSI    : in std_logic;
+	AVR_MISO    : out std_logic;
+	AVR_SCK     : in std_logic;
+	AVR_SS      : in std_logic;
 			
 	O_RESET		: out std_logic;
 	O_TURBO		: out std_logic;
@@ -83,8 +82,12 @@ begin
 								  turbo <= spi_do(1); 
 								  magick <= spi_do(2); 
 								  joy <= spi_do(7 downto 3);
+--				when X"07" => rom_bank <= spi_do(2 downto 0);
+--								  uart_tx_done <= spi_do(3);
+--								  uart_rx_req <= spi_do(4);
+--				when X"08" => uart_rx <= spi_do(7 downto 0);
 				when others => null;
-			end case;	
+			end case;
 		end if;
 	end if;
 end process;
@@ -95,14 +98,14 @@ begin
 		O_RESET <= not(reset);
 		O_MAGICK <= not(magick);
 		O_TURBO <= not(turbo);
-		O_JOY <= joy;
+		O_JOY <= not(joy);
 	end if;
 end process;
 
 --    
-process( kb_data, A)
+process( CLK, kb_data, A)
 begin
-
+	if (rising_edge(CLK)) then
 				KB(0) <=	not(( kb_data(0)  and not(A(8)  ) ) 
 							or    ( kb_data(1)  and not(A(9)  ) ) 
 							or    ( kb_data(2) and not(A(10) ) ) 
@@ -147,7 +150,7 @@ begin
 							or   ( kb_data(37) and not(A(13)) ) 
 							or   ( kb_data(38) and not(A(14)) ) 
 							or   ( kb_data(39) and not(A(15)) ) );
-
+	end if;
 end process;
 
 end RTL;

@@ -4,7 +4,7 @@ JedecChain;
 	DefaultMfr(6E);
 
 	P ActionCode(Cfg)
-		Device PartName(EPM3512AETC144) Path("/home/andy/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-pi/firmware/cpld/") File("firmware_top.pof") MfrSpec(OpMask(1));
+		Device PartName(EPM7512AET144) Path("/home/andy/Documents/Projects/Retrocomp/ZX-Spectrum/karabas-pi/firmware/cpld/") File("firmware_top.pof") MfrSpec(OpMask(1));
 
 ChainEnd;
 

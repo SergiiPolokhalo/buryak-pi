@@ -101,6 +101,7 @@ architecture rtl of firmware_top is
 	signal shift_r  	: std_logic_vector(7 downto 0);
 	signal rgb 	 		: std_logic_vector(2 downto 0);
 	signal i 			: std_logic;
+	signal vga_rgbi   : std_logic_vector(3 downto 0);
 
 	signal border_attr: std_logic_vector(2 downto 0) := "000";
 
@@ -138,7 +139,7 @@ architecture rtl of firmware_top is
 	signal vram_acc	: std_logic;
 	
 	signal n_is_ram   : std_logic := '1';
-	signal ram_page	: std_logic_vector(5 downto 0) := "000000";
+	signal ram_page	: std_logic_vector(6 downto 0) := "0000000";
 
 	signal n_is_rom   : std_logic := '1';
 	signal rom_page	: std_logic_vector(1 downto 0) := "00";
@@ -171,6 +172,8 @@ architecture rtl of firmware_top is
 
 begin
 
+	ram_ext_std <= "11"; -- 128
+
 	divmmc_rom <= '1' when (divmmc_disable_zxrom = '1' and divmmc_eeprom_cs_n = '0') else '0';
 	divmmc_ram <= '1' when (divmmc_disable_zxrom = '1' and divmmc_sram_cs_n = '0') else '0';
 	
@@ -187,13 +190,14 @@ begin
 	ROM_A(15) <= rom_page(1);	
 	
 	N_ROMCS <= '0' when n_is_rom = '0' and N_RD = '0' else '1';
+	N_ROMWE <= '1';
 
 	ram_page <=	
-				"1" & divmmc_sram_hiaddr(5 downto 1) when divmmc_ram = '1' else
-				"000000" when A(15) = '0' and A(14) = '0' else
-				"000101" when A(15) = '0' and A(14) = '1' else
-				"000010" when A(15) = '1' and A(14) = '0' else
-				ram_ext & port_7ffd(2 downto 0); -- pentagon 1024
+				"10" & divmmc_sram_hiaddr(5 downto 1) when divmmc_ram = '1' else
+				"0000000" when A(15) = '0' and A(14) = '0' else
+				"0000101" when A(15) = '0' and A(14) = '1' else
+				"0000010" when A(15) = '1' and A(14) = '0' else
+				"0" & ram_ext(2 downto 0) & port_7ffd(2 downto 0); -- pentagon 1024
 
 	MA(13 downto 0) <= 
 		divmmc_sram_hiaddr(0) & A(12 downto 0) when vbus_mode = '0' and divmmc_ram = '1' else
@@ -206,7 +210,7 @@ begin
 	MA(17) <= ram_page(3) when vbus_mode = '0' else '0';
 	MA(18) <= ram_page(4) when vbus_mode = '0' else '0';
 	MA(19) <= ram_page(5) when vbus_mode = '0' else '0';
-	MA(20) <= divmmc_ram;
+	MA(20) <= ram_page(6) when vbus_mode = '0' else '0';
 	
 	MD(7 downto 0) <= 
 		D(7 downto 0) when vbus_mode = '0' and ((n_is_ram = '0' or (N_IORQ = '0' and N_M1 = '1')) and N_WR = '0') else 
@@ -225,7 +229,7 @@ begin
 	ay_port <= '1' when A(7 downto 0) = x"FD" and A(15)='1' and fd_port = '1' else '0';
 	AY_BC1 <= '1' when ay_port = '1' and A(14) = '1' and N_IORQ = '0' and (N_WR='0' or N_RD='0') else '0';
 	AY_BDIR <= '1' when ay_port = '1' and N_IORQ = '0' and N_WR = '0' else '0';
-
+	
 	is_buf_wr <= '1' when vbus_mode = '0' and chr_col_cnt(0) = '0' else '0';
 	
 	N_NMI <= '0' when N_BTN_NMI = '0' or nmi = '0' else 'Z';
@@ -269,14 +273,14 @@ begin
 	divmmc_enable <= '1';
 	
 	-- clocks
-	process (CLK28, clk_14)
+	process (CLK28)
 	begin 
 		if (CLK28'event and CLK28 = '1') then 
 			clk_14 <= not(clk_14);
 		end if;
 	end process;
 	
-	process (clk_14, clk_7)
+	process (clk_14)
 	begin 
 		if (clk_14'event and clk_14 = '1') then 
 			clk_7 <= not(clk_7);
@@ -284,7 +288,7 @@ begin
 	end process;
 	
 	-- fill memory buf
-	process(is_buf_wr, MD)
+	process(is_buf_wr)
 	begin 
 		if (is_buf_wr'event and is_buf_wr = '0') then  -- high to low transition to lattch the MD into BUF
 			buf_md(7 downto 0) <= MD(7 downto 0);
@@ -540,8 +544,9 @@ begin
 		G_IN => rgb(1),
 		B_IN => rgb(0),
 		I_IN => i,
-		SYNC_IN => hsync xor vsync,
-		F28 => CLK28,
+		SYNC_IN => not (vsync xor hsync),
+		F28 => not CLK28,
+		F14 => not CLK_14,
 		R_VGA => VGA_R(1),
 		G_VGA => VGA_G(1),
 		B_VGA => VGA_B(1),
@@ -556,5 +561,28 @@ begin
 	VGA_R(0) <= i_vga(2);
 	VGA_G(0) <= i_vga(1);
 	VGA_B(0) <= i_vga(0);
+
+--	U3: entity work.scan_convert 
+--	port map(
+--		I_VIDEO => rgb & i,
+--		I_HSYNC => hsync,
+--		I_VSYNC => vsync,
+--		
+--		O_VIDEO => vga_rgbi,
+--		O_HSYNC => VGA_HSYNC,
+--		O_VSYNC => VGA_VSYNC,
+--		
+--		O_CMPBLK_N => open,
+--		CLK => CLK_14,
+--		CLK_x2 => CLK28,
+--		
+--		VA => VA,
+--		D => VD,
+--		N_VWE => N_VWE
+--	);
+--	
+--	VGA_R <= "00" when vga_rgbi(3 downto 1) = "000" else vga_rgbi(3) & vga_rgbi(0);
+--	VGA_G <= "00" when vga_rgbi(3 downto 1) = "000" else vga_rgbi(2) & vga_rgbi(0);
+--	VGA_B <= "00" when vga_rgbi(3 downto 1) = "000" else vga_rgbi(1) & vga_rgbi(0);	
 	
 end;
