@@ -172,7 +172,7 @@ architecture rtl of firmware_top is
 
 begin
 
-	ram_ext_std <= "11"; -- 128
+	ram_ext_std <= "10"; -- 128
 
 	divmmc_rom <= '1' when (divmmc_disable_zxrom = '1' and divmmc_eeprom_cs_n = '0') else '0';
 	divmmc_ram <= '1' when (divmmc_disable_zxrom = '1' and divmmc_sram_cs_n = '0') else '0';
@@ -232,7 +232,7 @@ begin
 	
 	is_buf_wr <= '1' when vbus_mode = '0' and chr_col_cnt(0) = '0' else '0';
 	
-	N_NMI <= '0' when N_BTN_NMI = '0' or nmi = '0' else 'Z';
+	N_NMI <= '0' when N_BTN_NMI = '0' or nmi = '0' else '1';
 	N_RESET <= '0' when reset = '0' else 'Z';
 	
 	 -- #FD port correction
@@ -468,6 +468,8 @@ begin
 						elsif ram_ext_std = "01" then -- pentagon-1024
 							port_7ffd <= D;
 							ram_ext <= D(5) & D(6) & D(7);
+						elsif ram_ext_std = "10" and port_7ffd(5) = '0' then -- profi 1024
+							port_7ffd <= D;
 						elsif ram_ext_std = "11" and port_7ffd(5) = '0' then -- pentagon-128
 							port_7ffd <= D;
 							ram_ext <= "000";
@@ -544,23 +546,23 @@ begin
 		G_IN => rgb(1),
 		B_IN => rgb(0),
 		I_IN => i,
-		SYNC_IN => not (vsync xor hsync),
+      SYNC_IN => not (vsync xor hsync),
 		F28 => not CLK28,
 		F14 => not CLK_14,
-		R_VGA => VGA_R(1),
-		G_VGA => VGA_G(1),
-		B_VGA => VGA_B(1),
+		R_VGA => VGA_R(0),
+		G_VGA => VGA_G(0),
+		B_VGA => VGA_B(0),
 		I_VGA => i_vga,
 		HSYNC_VGA => VGA_HSYNC,
 		VSYNC_VGA => VGA_VSYNC,
 		A(14 downto 0) => VA,
 		WE => N_VWE,
-		D(7 downto 0) => VD
+		D(7 downto 0) => VD		
 	);	
 	
-	VGA_R(0) <= i_vga(2);
-	VGA_G(0) <= i_vga(1);
-	VGA_B(0) <= i_vga(0);
+	VGA_R(1) <= i_vga(2);
+	VGA_G(1) <= i_vga(1);
+	VGA_B(1) <= i_vga(0);
 
 --	U3: entity work.scan_convert 
 --	port map(
