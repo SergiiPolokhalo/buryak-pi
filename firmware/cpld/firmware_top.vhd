@@ -54,7 +54,6 @@ entity firmware_top is
 		BEEPER			: out std_logic := '1';
 
 		-- AY
-		--CLK_AY			: out std_logic;
 		AY_BC1			: out std_logic;
 		AY_BDIR			: out std_logic;
 
@@ -183,7 +182,7 @@ begin
 				"0000000" when A(15) = '0' and A(14) = '0' else
 				"0000101" when A(15) = '0' and A(14) = '1' else
 				"0000010" when A(15) = '1' and A(14) = '0' else
-				"0" & ram_ext(2 downto 0) & port_7ffd(2 downto 0); -- pentagon 1024
+				"0" & ram_ext(2 downto 0) & port_7ffd(2 downto 0);
 
 	MA(13 downto 0) <= 
 		divmmc_sram_hiaddr(0) & A(12 downto 0) when vbus_mode = '0' and divmmc_ram = '1' else -- divmmc ram 
@@ -422,26 +421,18 @@ begin
 	-- scandoubler
 	U4: entity work.vga_pal 
 	port map (
-		R_IN => rgb(2),
-		G_IN => rgb(1),
-		B_IN => rgb(0),
-		I_IN => i,
+		RGBI_IN => rgb & i,
       SYNC_IN => not (vsync xor hsync),
 		F28 => CLK28,
 		F14 => CLK_14,
-		R_VGA => VGA_R(0),
-		G_VGA => VGA_G(0),
-		B_VGA => VGA_B(0),
-		I_VGA => i_vga,
+		R_VGA => VGA_R,
+		G_VGA => VGA_G,
+		B_VGA => VGA_B,
 		HSYNC_VGA => VGA_HSYNC,
 		VSYNC_VGA => VGA_VSYNC,
-		A(14 downto 0) => VA,
+		A => VA,
 		WE => N_VWE,
-		D(7 downto 0) => VD		
+		D => VD
 	);	
-	
-	VGA_R(1) <= i_vga(2);
-	VGA_G(1) <= i_vga(1);
-	VGA_B(1) <= i_vga(0);
 	
 end;
