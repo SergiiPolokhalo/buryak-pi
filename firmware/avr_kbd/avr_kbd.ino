@@ -27,11 +27,11 @@
 #define LED_TURBO A2
 #define LED_SPECIAL A3
 
-#define JOY_UP 4
-#define JOY_DOWN 5
-#define JOY_LEFT 6
-#define JOY_RIGHT 7
-#define JOY_FIRE 8
+#define JOY_UP 5    // avr pin 9
+#define JOY_DOWN 6  // avr pin 10
+#define JOY_LEFT 7  // avr pin 11
+#define JOY_RIGHT 8 // avr pin 12
+#define JOY_FIRE 4  // avr pin 2
 
 #define ROM_A16 A4
 #define ROM_A17 A5
