@@ -84,24 +84,15 @@ architecture rtl of firmware_top is
 	signal buf_md		: std_logic_vector(7 downto 0) := "11111111";
 	signal is_buf_wr	: std_logic := '0';	
 	
-	signal invert   	: unsigned(4 downto 0) := "00000";
-
-	signal chr_col_cnt: unsigned(2 downto 0) := "000"; -- Character column counter
-	signal chr_row_cnt: unsigned(2 downto 0) := "000"; -- Character row counter
-
-	signal hor_cnt  	: unsigned(5 downto 0) := "000000"; -- Horizontal counter
-	signal ver_cnt  	: unsigned(5 downto 0) := "000000"; -- Vertical counter
-
-	signal attr     	: std_logic_vector(7 downto 0);
-	signal shift    	: std_logic_vector(7 downto 0);
-	
-	signal paper_r  	: std_logic;
-	signal blank_r  	: std_logic;
 	signal attr_r   	: std_logic_vector(7 downto 0);
-	signal shift_r  	: std_logic_vector(7 downto 0);
 	signal rgb 	 		: std_logic_vector(2 downto 0);
 	signal i 			: std_logic;
 	signal vga_rgbi   : std_logic_vector(3 downto 0);
+	signal vid_a 		: std_logic_vector(13 downto 0);
+	signal hcnt0 		: std_logic;
+	
+	signal timexcfg_reg : std_logic_vector(5 downto 0);
+	signal is_port_ff : std_logic := '0';	
 
 	signal border_attr: std_logic_vector(2 downto 0) := "000";
 
@@ -131,13 +122,9 @@ architecture rtl of firmware_top is
 	
 	signal vid_rd		: std_logic := '0';
 	
-	signal paper     	: std_logic;
-
 	signal hsync     	: std_logic := '1';
 	signal vsync     	: std_logic := '1';
 
-	signal vram_acc	: std_logic;
-	
 	signal n_is_ram   : std_logic := '1';
 	signal ram_page	: std_logic_vector(6 downto 0) := "0000000";
 
@@ -200,10 +187,10 @@ begin
 				"0" & ram_ext(2 downto 0) & port_7ffd(2 downto 0); -- pentagon 1024
 
 	MA(13 downto 0) <= 
-		divmmc_sram_hiaddr(0) & A(12 downto 0) when vbus_mode = '0' and divmmc_ram = '1' else
-		A(13 downto 0) when vbus_mode = '0' else 
-		std_logic_vector( "0" & ver_cnt(4 downto 3) & chr_row_cnt & ver_cnt(2 downto 0) & hor_cnt(4 downto 0) ) when vid_rd = '0' else
-		std_logic_vector( "0110" & ver_cnt(4 downto 0) & hor_cnt(4 downto 0) );
+		divmmc_sram_hiaddr(0) & A(12 downto 0) when vbus_mode = '0' and divmmc_ram = '1' else -- divmmc ram 
+		A(13 downto 0) when vbus_mode = '0' else -- spectrum ram 
+		vid_a; -- video ram
+
 	MA(14) <= ram_page(0) when vbus_mode = '0' else '1';
 	MA(15) <= ram_page(1) when vbus_mode = '0' else port_7ffd(3);
 	MA(16) <= ram_page(2) when vbus_mode = '0' else '1';
@@ -217,12 +204,10 @@ begin
 		(others => 'Z');
 
 	vbus_req <= '0' when ( N_MREQ = '0' or N_IORQ = '0' ) and ( N_WR = '0' or N_RD = '0' ) else '1';
-	vbus_rdy <= '0' when clk_7 = '0' or chr_col_cnt(0) = '0' else '1';
+	vbus_rdy <= '0' when clk_7 = '0' or hcnt0 = '0' else '1';
 	
 	N_MRD <= '0' when (vbus_mode = '1' and vbus_rdy = '0') or (vbus_mode = '0' and N_RD = '0' and N_MREQ = '0') else '1';  
-	N_MWR <= '0' when vbus_mode = '0' and n_is_ram = '0' and N_WR = '0' and chr_col_cnt(0) = '0' else '1';
-
-	paper <= '0' when hor_cnt(5) = '0' and ver_cnt(5) = '0' and ( ver_cnt(4) = '0' or ver_cnt(3) = '0' ) else '1';      
+	N_MWR <= '0' when vbus_mode = '0' and n_is_ram = '0' and N_WR = '0' and hcnt0 = '0' else '1';
 
 	BEEPER <= sound_out;
 
@@ -230,7 +215,7 @@ begin
 	AY_BC1 <= '1' when ay_port = '1' and A(14) = '1' and N_IORQ = '0' and (N_WR='0' or N_RD='0') else '0';
 	AY_BDIR <= '1' when ay_port = '1' and N_IORQ = '0' and N_WR = '0' else '0';
 	
-	is_buf_wr <= '1' when vbus_mode = '0' and chr_col_cnt(0) = '0' else '0';
+	is_buf_wr <= '1' when vbus_mode = '0' and hcnt0 = '0' else '0';
 	
 	N_NMI <= '0' when N_BTN_NMI = '0' or nmi = '0' else '1';
 	N_RESET <= '0' when reset = '0' else 'Z';
@@ -248,11 +233,11 @@ begin
 	 end process;
 
 	-- CPU clock 
-	process( N_RESET, clk_14, clk_7, chr_col_cnt )
+	process( N_RESET, clk_14, clk_7, hcnt0 )
 	begin
 		if clk_14'event and clk_14 = '1' then
 			if clk_7 = '1' then
-				CLK_CPU <= chr_col_cnt(0);
+				CLK_CPU <= hcnt0;
 			end if;
 		end if;
 	end process;
@@ -267,7 +252,8 @@ begin
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
-		attr_r when port_read = '1' and A(7 downto 0) = "11111111" else -- #FF - attributes
+		"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
+		--attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
 	divmmc_enable <= '1';
@@ -295,83 +281,12 @@ begin
 		end if;
 	end process;	
 	
-	-- sync, counters
-	process( clk_14, clk_7, chr_col_cnt, hor_cnt, chr_row_cnt, ver_cnt)
-	begin
-		if clk_14'event and clk_14 = '1' then
-		
-			if clk_7 = '1' then
-			
-				if chr_col_cnt = 7 then
-				
-					if hor_cnt = 55 then
-						hor_cnt <= (others => '0');
-					else
-						hor_cnt <= hor_cnt + 1;
-					end if;
-					
-					if hor_cnt = 39 then
-						if chr_row_cnt = 7 then
-							if ver_cnt = 39 then
-								ver_cnt <= (others => '0');
-								invert <= invert + 1;
-							else
-								ver_cnt <= ver_cnt + 1;
-							end if;
-						end if;
-						chr_row_cnt <= chr_row_cnt + 1;
-					end if;
-				end if;
-
-				-- h/v sync
-
-				if chr_col_cnt = 7 then
-
-					if (hor_cnt(5 downto 2) = "1010") then 
-						hsync <= '0';
-					else 
-						hsync <= '1';
-					end if;
-					
-					if ver_cnt /= 31 then
-						vsync <= '1';
-					elsif chr_row_cnt = 3 or chr_row_cnt = 4 or ( chr_row_cnt = 5 and ( hor_cnt >= 40 or hor_cnt < 12 ) ) then
-						vsync <= '0';
-					else 
-						vsync <= '1';
-					end if;
-					
-				end if;
-			
-				-- int
-				if chr_col_cnt = 6 and hor_cnt(2 downto 0) = "111" then
-					if ver_cnt = 29 and chr_row_cnt = 7 and hor_cnt(5 downto 3) = "100" then
-						N_INT <= '0';
-					else
-						N_INT <= '1';
-					end if;
-				end if;
-
-				chr_col_cnt <= chr_col_cnt + 1;
-			end if;
-		end if;
-	end process;
-
 	-- video mem
-	process( clk_14, clk_7, chr_col_cnt, vbus_mode, vid_rd, vbus_req, vbus_ack )
+	process( clk_14, clk_7, hcnt0, vbus_mode, vid_rd, vbus_req, vbus_ack )
 	begin
 		-- lower edge of 7 mhz clock
 		if clk_14'event and clk_14 = '1' then 
-			if chr_col_cnt(0) = '1' and clk_7 = '0' then
-			
-				if vbus_mode = '1' then
-					if vid_rd = '0' then
-						shift <= MD;
-					else
-						attr  <= MD;
-					end if;
-				end if;
-				
+			if hcnt0 = '1' and clk_7 = '0' then
 				if vbus_req = '0' and vbus_ack = '1' then
 					vbus_mode <= '0';
 				else
@@ -383,72 +298,6 @@ begin
 		end if;
 	end process;
 
-	-- r/g/b
-	process( clk_14, clk_7, paper_r, shift_r, attr_r, invert, blank_r )
-	begin
-		if clk_14'event and clk_14 = '1' then
-			if (clk_7  = '1') then
-				if paper_r = '0' then           
-					if( shift_r(7) xor ( attr_r(7) and invert(4) ) ) = '1' then
-						rgb(2) <= attr_r(1);
-						rgb(1) <= attr_r(2);
-						rgb(0) <= attr_r(0);
-					else
-						rgb(2) <= attr_r(4);
-						rgb(1) <= attr_r(5);
-						rgb(0) <= attr_r(3);
-					end if;
-				else
-					if blank_r = '0' then
-						rgb <= "000";
-					else
-						rgb(2) <= border_attr(1);
-						rgb(1) <= border_attr(2);
-						rgb(0) <= border_attr(0);
-					end if;
-				end if;
-			end if;
-		end if;
-	end process;
-
-	-- brightness
-	process( clk_14, clk_7, paper_r, attr_r, rgb, i )
-	begin
-		if clk_14'event and clk_14 = '1' then
-			if (clk_7 = '1') then
-				if paper_r = '0' and attr_r(6) = '1' and rgb /= "000" then
-					i <= '1';
-				else
-					i <= '0';
-				end if;
-			end if;
-		end if;
-	end process;
-
-	-- paper, blank
-	process( clk_14, clk_7, chr_col_cnt, hor_cnt, ver_cnt )
-	begin
-		if clk_14'event and clk_14 = '1' then
-			if (clk_7 = '1') then
-				if chr_col_cnt = 7 then
-					attr_r <= attr;
-					shift_r <= shift;
-
-					if ((hor_cnt(5 downto 0) > 38 and hor_cnt(5 downto 0) < 48) or ver_cnt(5 downto 1) = 15) then
-						blank_r <= '0';
-					else 
-						blank_r <= '1';
-					end if;
-					
-					paper_r <= paper;
-				else
-					shift_r(7 downto 1) <= shift_r(6 downto 0);
-					shift_r(0) <= '0';
-				end if;
-			end if;
-		end if;
-	end process;
-
 	-- ports, write by CPU
 	process( clk_14, clk_7, N_RESET, A, D, port_write, port_7ffd, N_M1, N_MREQ, ram_ext_std )
 	begin
@@ -456,6 +305,8 @@ begin
 			port_7ffd <= "00000000";
 			ram_ext <= "000";
 			sound_out <= '0';
+			timexcfg_reg <= (others => '0');
+			is_port_ff <= '0';
 		elsif clk_14'event and clk_14 = '1' then 
 			if clk_7 = '1' then
 				if port_write = '1' then
@@ -486,6 +337,13 @@ begin
 						border_attr <= D(2 downto 0); -- border attr
 						sound_out <= D(4); -- BEEPER
 					end if;
+					
+					-- port FF / timex CFG
+					if (A(7 downto 0) = X"FF") then 
+						timexcfg_reg(5 downto 0) <= D(5 downto 0);
+						is_port_ff <= '1';
+					end if;
+					
 				end if;
 				
 			end if;
@@ -539,8 +397,31 @@ begin
 		O_JOY => joy
 	);
 	
+	-- video module
+	U3: entity work.video 
+	port map (
+		CLK => CLK_14,
+		ENA7 => CLK_7,
+		BORDER => border_attr,
+		TIMEXCFG => timexcfg_reg,
+		DI => MD,
+		TURBO => '0', -- TODO: turbo mode
+		INTA => '0', -- TOOD: int end for turbo
+		INT => N_INT,
+		ATTR_O => attr_r, 
+		A => vid_a,
+		BLANK => open,
+		RGB => rgb,
+		I => i,
+		HSYNC => hsync,
+		VSYNC => vsync,
+		VBUS_MODE => vbus_mode,
+		VID_RD => vid_rd,
+		HCNT0 => hcnt0
+	);
+	
 	-- scandoubler
-	U3: entity work.vga_pal 
+	U4: entity work.vga_pal 
 	port map (
 		R_IN => rgb(2),
 		G_IN => rgb(1),
@@ -562,29 +443,32 @@ begin
 	
 	VGA_R(1) <= i_vga(2);
 	VGA_G(1) <= i_vga(1);
-	VGA_B(1) <= i_vga(0);
+	VGA_B(1) <= i_vga(0);	
 
---	U3: entity work.scan_convert 
---	port map(
---		I_VIDEO => rgb & i,
+--	U5: entity work.scan_convert 
+--	port map ( 
+--		I_VIDEO => rgb(2 downto 0) & i,
 --		I_HSYNC => hsync,
 --		I_VSYNC => vsync,
 --		
 --		O_VIDEO => vga_rgbi,
 --		O_HSYNC => VGA_HSYNC,
 --		O_VSYNC => VGA_VSYNC,
---		
 --		O_CMPBLK_N => open,
+--
 --		CLK => CLK_14,
 --		CLK_x2 => CLK28,
---		
+--
 --		VA => VA,
 --		D => VD,
 --		N_VWE => N_VWE
 --	);
 --	
---	VGA_R <= "00" when vga_rgbi(3 downto 1) = "000" else vga_rgbi(3) & vga_rgbi(0);
---	VGA_G <= "00" when vga_rgbi(3 downto 1) = "000" else vga_rgbi(2) & vga_rgbi(0);
---	VGA_B <= "00" when vga_rgbi(3 downto 1) = "000" else vga_rgbi(1) & vga_rgbi(0);	
+--	VGA_R(0) <= vga_rgbi(3);
+--	VGA_R(1) <= vga_rgbi(0);
+--	VGA_G(0) <= vga_rgbi(2);
+--	VGA_G(1) <= vga_rgbi(0);
+--	VGA_B(0) <= vga_rgbi(1);
+--	VGA_B(1) <= vga_rgbi(0);
 	
 end;
