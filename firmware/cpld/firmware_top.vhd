@@ -424,9 +424,13 @@ begin
 	U4: entity work.vga_pal 
 	port map (
 		RGBI_IN => rgb & i,
-      SYNC_IN => not (vsync xor hsync),
+      HSYNC_IN => hsync,
+		VSYNC_IN => vsync,
+		HCNT_IN => hcnt,
+		VCNT_IN => vcnt,
 		F28 => CLK28,
 		F14 => CLK_14,
+		F7 => CLK_7,
 		R_VGA => VGA_R,
 		G_VGA => VGA_G,
 		B_VGA => VGA_B,
