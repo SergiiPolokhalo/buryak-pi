@@ -84,10 +84,9 @@ architecture rtl of firmware_top is
 	signal buf_md		: std_logic_vector(7 downto 0) := "11111111";
 	signal is_buf_wr	: std_logic := '0';	
 	
-	signal attr_r   	: std_logic_vector(7 downto 0);
+--	signal attr_r   	: std_logic_vector(7 downto 0);
 	signal rgb 	 		: std_logic_vector(2 downto 0);
 	signal i 			: std_logic;
-	signal vga_rgbi   : std_logic_vector(3 downto 0);
 	signal vid_a 		: std_logic_vector(13 downto 0);
 	signal hcnt0 		: std_logic;
 	
@@ -159,7 +158,7 @@ architecture rtl of firmware_top is
 
 begin
 
-	ram_ext_std <= "10"; -- 128
+	ram_ext_std <= "10"; -- profi-1024
 
 	divmmc_rom <= '1' when (divmmc_disable_zxrom = '1' and divmmc_eeprom_cs_n = '0') else '0';
 	divmmc_ram <= '1' when (divmmc_disable_zxrom = '1' and divmmc_sram_cs_n = '0') else '0';
@@ -252,7 +251,7 @@ begin
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
-		"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
+		--"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
 		--attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
@@ -408,7 +407,7 @@ begin
 		TURBO => '0', -- TODO: turbo mode
 		INTA => '0', -- TOOD: int end for turbo
 		INT => N_INT,
-		ATTR_O => attr_r, 
+		ATTR_O => open, --attr_r, 
 		A => vid_a,
 		BLANK => open,
 		RGB => rgb,
@@ -428,8 +427,8 @@ begin
 		B_IN => rgb(0),
 		I_IN => i,
       SYNC_IN => not (vsync xor hsync),
-		F28 => not CLK28,
-		F14 => not CLK_14,
+		F28 => CLK28,
+		F14 => CLK_14,
 		R_VGA => VGA_R(0),
 		G_VGA => VGA_G(0),
 		B_VGA => VGA_B(0),
@@ -443,32 +442,6 @@ begin
 	
 	VGA_R(1) <= i_vga(2);
 	VGA_G(1) <= i_vga(1);
-	VGA_B(1) <= i_vga(0);	
-
---	U5: entity work.scan_convert 
---	port map ( 
---		I_VIDEO => rgb(2 downto 0) & i,
---		I_HSYNC => hsync,
---		I_VSYNC => vsync,
---		
---		O_VIDEO => vga_rgbi,
---		O_HSYNC => VGA_HSYNC,
---		O_VSYNC => VGA_VSYNC,
---		O_CMPBLK_N => open,
---
---		CLK => CLK_14,
---		CLK_x2 => CLK28,
---
---		VA => VA,
---		D => VD,
---		N_VWE => N_VWE
---	);
---	
---	VGA_R(0) <= vga_rgbi(3);
---	VGA_R(1) <= vga_rgbi(0);
---	VGA_G(0) <= vga_rgbi(2);
---	VGA_G(1) <= vga_rgbi(0);
---	VGA_B(0) <= vga_rgbi(1);
---	VGA_B(1) <= vga_rgbi(0);
+	VGA_B(1) <= i_vga(0);
 	
 end;
