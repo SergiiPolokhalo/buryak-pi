@@ -87,7 +87,8 @@ architecture rtl of firmware_top is
 	signal rgb 	 		: std_logic_vector(2 downto 0);
 	signal i 			: std_logic;
 	signal vid_a 		: std_logic_vector(13 downto 0);
-	signal hcnt0 		: std_logic;
+	signal hcnt 		: std_logic_vector(8 downto 0);
+	signal vcnt 		: std_logic_vector(8 downto 0);	
 	
 	signal timexcfg_reg : std_logic_vector(5 downto 0);
 	signal is_port_ff : std_logic := '0';	
@@ -202,10 +203,10 @@ begin
 		(others => 'Z');
 
 	vbus_req <= '0' when ( N_MREQ = '0' or N_IORQ = '0' ) and ( N_WR = '0' or N_RD = '0' ) else '1';
-	vbus_rdy <= '0' when clk_7 = '0' or hcnt0 = '0' else '1';
+	vbus_rdy <= '0' when clk_7 = '0' or hcnt(0) = '0' else '1';
 	
 	N_MRD <= '0' when (vbus_mode = '1' and vbus_rdy = '0') or (vbus_mode = '0' and N_RD = '0' and N_MREQ = '0') else '1';  
-	N_MWR <= '0' when vbus_mode = '0' and n_is_ram = '0' and N_WR = '0' and hcnt0 = '0' else '1';
+	N_MWR <= '0' when vbus_mode = '0' and n_is_ram = '0' and N_WR = '0' and hcnt(0) = '0' else '1';
 
 	BEEPER <= sound_out;
 
@@ -213,7 +214,7 @@ begin
 	AY_BC1 <= '1' when ay_port = '1' and A(14) = '1' and N_IORQ = '0' and (N_WR='0' or N_RD='0') else '0';
 	AY_BDIR <= '1' when ay_port = '1' and N_IORQ = '0' and N_WR = '0' else '0';
 	
-	is_buf_wr <= '1' when vbus_mode = '0' and hcnt0 = '0' else '0';
+	is_buf_wr <= '1' when vbus_mode = '0' and hcnt(0) = '0' else '0';
 	
 	N_NMI <= '0' when N_BTN_NMI = '0' or nmi = '0' else '1';
 	N_RESET <= '0' when reset = '0' else 'Z';
@@ -231,11 +232,11 @@ begin
 	 end process;
 
 	-- CPU clock 
-	process( N_RESET, clk_14, clk_7, hcnt0 )
+	process( N_RESET, clk_14, clk_7, hcnt )
 	begin
 		if clk_14'event and clk_14 = '1' then
 			if clk_7 = '1' then
-				CLK_CPU <= hcnt0;
+				CLK_CPU <= hcnt(0);
 			end if;
 		end if;
 	end process;
@@ -280,11 +281,11 @@ begin
 	end process;	
 	
 	-- video mem
-	process( clk_14, clk_7, hcnt0, vbus_mode, vid_rd, vbus_req, vbus_ack )
+	process( clk_14, clk_7, hcnt, vbus_mode, vid_rd, vbus_req, vbus_ack )
 	begin
 		-- lower edge of 7 mhz clock
 		if clk_14'event and clk_14 = '1' then 
-			if hcnt0 = '1' and clk_7 = '0' then
+			if hcnt(0) = '1' and clk_7 = '0' then
 				if vbus_req = '0' and vbus_ack = '1' then
 					vbus_mode <= '0';
 				else
@@ -415,7 +416,8 @@ begin
 		VSYNC => vsync,
 		VBUS_MODE => vbus_mode,
 		VID_RD => vid_rd,
-		HCNT0 => hcnt0
+		HCNT_O => hcnt,
+		VCNT_O => vcnt
 	);
 	
 	-- scandoubler
