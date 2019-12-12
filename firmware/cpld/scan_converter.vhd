@@ -58,15 +58,16 @@ entity scan_convert is
 		vpad				: integer range 0 to 1023 :=  0	-- create V black border -- todo!!!
 	);
 	port (
-		I_VIDEO				: in  std_logic_vector(3 downto 0);
+		I_RGBI				: in  std_logic_vector(3 downto 0);
 		I_HSYNC				: in  std_logic;
 		I_VSYNC				: in  std_logic;
-		--
-		O_VIDEO				: out std_logic_vector(3 downto 0);
+
+		O_RED 				: out std_logic_vector(1 downto 0);
+		O_GREEN 				: out std_logic_vector(1 downto 0);
+		O_BLUE 				: out std_logic_vector(1 downto 0);
 		O_HSYNC				: out std_logic;
 		O_VSYNC				: out std_logic;
-		O_CMPBLK_N			: out std_logic;
-		--
+
 		CLK					: in  std_logic;
 		CLK_x2				: in  std_logic;
 
@@ -89,30 +90,38 @@ architecture RTL of scan_convert is
 	--
 	signal hpos_o			: std_logic_vector(9 downto 0) := (others => '0');
 
-	signal vcnt				: integer range 0 to 2047 := 0;
-	signal hcnt				: integer range 0 to 2047 := 0;
-	signal hcnti			: integer range 0 to 2047 := 0;
+	signal vcnt				: std_logic_vector(9 downto 0) := (others => '0');
+	signal hcnt				: std_logic_vector(9 downto 0) := (others => '0');
+	signal hcnti			: std_logic_vector(9 downto 0) := (others => '0');
 
-	signal wr_cnt 			: std_logic := '0';
+	signal rgbi 			: std_logic_vector(3 downto 0);
 	signal wr_buf 			: std_logic_vector(7 downto 0);
+	signal rd_buf 			: std_logic_vector(7 downto 0);
+	signal pixel 			: std_logic_vector(3 downto 0);
+	signal blank 			: std_logic;
 
 begin
+
+	D <= wr_buf when CLK = '1' else (others => 'Z');
+	N_VWE <= not(CLK);
+	VA <= "00000" & vcnt(1) & hpos_i(9 downto 1) when CLK = '1' else "00000" & not(vcnt(1)) & hpos_o(9 downto 1);
 	
-	D <= wr_buf when CLK = '0' else (others => 'Z');
-	N_VWE <= '0' when CLK = '1' else '1';
-	VA <= "00000" & hpos_i when CLK = '0' else "00000" & hpos_o;
+	-- normalize input signals
+	process (CLK)
+	begin 
+		if falling_edge(CLK) then 
+			rgbi <= I_RGBI;
+		end if;
+	end process;
 	
 	-- write 2x pixels into buffer
-	process(CLK_x2)
+	process(CLK)
 	begin 
-		if rising_edge(CLK_x2) then 
-			if CLK = '1' then 
-				if (wr_cnt = '1') then 
-					wr_buf(7 downto 4) <= I_VIDEO;
-				else 
-					wr_buf(3 downto 0) <= I_VIDEO;
-				end if;
-				wr_cnt <= not wr_cnt;
+		if rising_edge(CLK) then 
+			if hpos_i(0) = '1' then 
+				wr_buf(3 downto 0) <= rgbi;
+			else 
+				wr_buf(7 downto 4) <= rgbi;
 			end if;
 		end if;
 	end process;
@@ -121,12 +130,8 @@ begin
 	process(CLK_x2)
 	begin 
 		if (rising_edge(CLK_x2)) then 
-			if CLK = '1' then 
-				if (wr_cnt = '1') then 
-					O_VIDEO <= D(7 downto 4);
-				else 
-					O_VIDEO <= D(3 downto 0);
-				end if;
+			if CLK = '0' then 
+				rd_buf <= D;
 			end if;
 		end if;
 	end process;
@@ -138,7 +143,7 @@ begin
 			ihsync_last <= I_HSYNC;
 			-- trigger off rising hsync
 			if I_HSYNC = '1' and ihsync_last = '0' then
-				hcnti <= 0;
+				hcnti <= (others => '0');
 			else
 				hcnti <= hcnti + 1;
 			end if;
@@ -167,12 +172,12 @@ begin
 				trigger := true;
 			elsif trigger and I_HSYNC = '0' then
 				trigger := false;
-				hcnt <= 0;
-				vcnt <= 0;
+				hcnt <= (others => '0');
+				vcnt <= (others => '0');
 			else
 				hcnt <= hcnt + 1;
 				if hcnt = (hA+hB+hC+hD+hpad+hpad-1) then
-					hcnt <= 0;
+					hcnt <= (others => '0');
 					vcnt <= vcnt + 1;
 				end if;
 			end if;
@@ -205,7 +210,7 @@ begin
 		end if;
 	end process;
 
-	-- generate active output video
+	-- generate video read address
 	p_gen_active_vid : process (CLK_x2)
 	begin
 		if CLK_x2'event and CLK_x2 = '1' then
@@ -218,17 +223,51 @@ begin
 		end if;
 	end process;
 	
+	-- divide pixels from read buffer
+	process (CLK_x2, CLK) 
+	begin
+	  if (rising_edge(CLK_x2)) then
+			if CLK = '0' then 
+				pixel <= rd_buf(3 downto 0);
+			else 
+				pixel <= rd_buf(7 downto 4);
+			end if;
+		end if;
+	end process;
+	
 	-- generate blanking signal including additional borders to pad the input signal to standard VGA resolution
 	p_gen_blank : process (CLK_x2)
 	begin
 		if CLK_x2'event and CLK_x2 = '1' then
 			-- active video area 640x480 (VGA) after padding with blank borders
 			if ((hcnt >= (hB + hC)) and (hcnt < (hB + hC + hD + 2*hpad))) and ((vcnt > 2*(vB + vC)) and (vcnt <= 2*(vB + vC + vD + 2*vpad))) then
-				O_CMPBLK_N <= '1';
+				blank <= '1';
 			else
-				O_CMPBLK_N <= '0';
+				blank <= '0';
 			end if;
 		end if;
+	end process;
+	
+	-- output pixels 
+	process (CLK_x2) 
+	begin 
+		if (rising_edge(CLK_x2)) then  -- если фронт тактового импульса,
+
+		 O_RED(0)     <= pixel(3) and blank;
+		 O_GREEN(0)   <= pixel(2) and blank;
+		 O_BLUE(0)    <= pixel(1) and blank;
+		 
+		 if (pixel(0) and blank) = '0'  then  -- если яркость пониженная:
+			  O_RED(1)   <= '0'; -- уменьшаем сигнал подключением резисторов к 0
+			  O_GREEN(1) <= '0';
+			  O_BLUE(1)  <= '0'; 
+		 else
+			  O_GREEN(1) <= 'Z'; -- резисторы отключены
+			  O_RED(1)   <= 'Z';
+			  O_BLUE(1)  <= 'Z'; 
+		 end if;
+
+	  end if;
 	end process;
 
 end architecture RTL;
