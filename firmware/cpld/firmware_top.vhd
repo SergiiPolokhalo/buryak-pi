@@ -488,25 +488,35 @@ begin
 	);
 	
 	-- scandoubler
-	U4: entity work.vga_pal 
-	port map (
-		RGBI_IN => rgb & i,
-      HSYNC_IN => hsync,
-		VSYNC_IN => vsync,
-		HCNT_IN => hcnt,
-		VCNT_IN => vcnt,
-		F28 => CLK28,
-		F14 => CLK_14,
-		F7 => CLK_7,
-		R_VGA => VGA_R,
-		G_VGA => VGA_G,
-		B_VGA => VGA_B,
-		HSYNC_VGA => VGA_HSYNC,
-		VSYNC_VGA => VGA_VSYNC,
-		A => VA,
-		WE => N_VWE,
-		D => VD
-	);	
+--	U4: entity work.vga_pal 
+--	port map (
+--		RGBI_IN => rgb & i,
+--      HSYNC_IN => hsync,
+--		VSYNC_IN => vsync,
+--		HCNT_IN => hcnt,
+--		VCNT_IN => vcnt,
+--		F28 => CLK28,
+--		F14 => CLK_14,
+--		F7 => CLK_7,
+--		R_VGA => VGA_R,
+--		G_VGA => VGA_G,
+--		B_VGA => VGA_B,
+--		HSYNC_VGA => VGA_HSYNC,
+--		VSYNC_VGA => VGA_VSYNC,
+--		A => VA,
+--		WE => N_VWE,
+--		D => VD
+--	);	
+
+	-- RGB вместо скандаблера
+	VGA_R(0) <= rgb(2);
+	VGA_G(0) <= rgb(1);
+	VGA_B(0) <= rgb(0);
+	VGA_R(1) <= '0' when i = '0' or rgb = "000" else 'Z';
+	VGA_G(1) <= '0' when i = '0' or rgb = "000" else 'Z';
+	VGA_B(1) <= '0' when i = '0' or rgb = "000" else 'Z';
+	VGA_HSYNC <= hsync;
+	VGA_VSYNC <= vsync;
 
 -- -- alternate scandoubler implementation
 --	U4: entity work.scan_convert 
