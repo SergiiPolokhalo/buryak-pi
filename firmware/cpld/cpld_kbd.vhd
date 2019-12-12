@@ -17,9 +17,16 @@ port (
 			
 	O_RESET		: out std_logic;
 	O_TURBO		: out std_logic;
-	O_MAGICK	: out std_logic;
+	O_MAGICK	: out std_logic;	
+	O_JOY : out std_logic_vector(4 downto 0);
+	O_ROM_BANK : out std_logic_vector(2 downto 0) := "000";
 	
-	O_JOY : out std_logic_vector(4 downto 0)
+	UART_TXDATA 	: in std_logic_vector(7 downto 0);
+	UART_TXBEGIN 	: in std_logic;
+	UART_TXBUSY 	: out std_logic;
+	UART_RXDATA 	: out std_logic_vector(7 downto 0);
+	UART_RXRECV 	: in std_logic;
+	UART_DATA_READ : in std_logic
 );
 end cpld_kbd;
 
@@ -32,12 +39,19 @@ architecture RTL of cpld_kbd is
 	 signal reset   : std_logic := '0';
 	 signal turbo   : std_logic := '0';
 	 signal magick  : std_logic := '0';
+	 signal rom_bank : std_logic_vector(2 downto 0) := "000";
+	 signal joy : std_logic_vector(4 downto 0);
 	 
 	 -- spi
 	 signal spi_do_valid : std_logic := '0';
 	 signal spi_do : std_logic_vector(15 downto 0);
+	 signal spi_di : std_logic_vector(15 downto 0);
+	 signal spi_di_req : std_logic := '0';
+	 signal spi_wr : std_logic := '0';	 
 	 
-	 signal joy : std_logic_vector(4 downto 0);
+	 -- uart 
+	 signal txbusy : std_logic := '0';
+	 signal rxdata : std_logic_vector(7 downto 0);
 
 begin
 
@@ -52,9 +66,9 @@ U_SPI: entity work.spi_slave
         spi_mosi_i     => AVR_MOSI,
         spi_miso_o     => AVR_MISO,
 
-        di_req_o       => open,
-        di_i           => open,
-        wren_i         => '0',
+        di_req_o       => spi_di_req,
+        di_i           => spi_di,
+        wren_i         => spi_wr,
         do_valid_o     => spi_do_valid,
         do_o           => spi_do,
 
@@ -82,15 +96,16 @@ begin
 								  turbo <= spi_do(1); 
 								  magick <= spi_do(2); 
 								  joy <= spi_do(7 downto 3);
---				when X"07" => rom_bank <= spi_do(2 downto 0);
---								  uart_txbusy <= spi_do(7);
---				when X"08" => uart_rxdata <= spi_do(7 downto 0);
+				when X"07" => rom_bank <= spi_do(2 downto 0);
+								  txbusy <= spi_do(7);
+				when X"08" => rxdata <= spi_do(7 downto 0);
 				when others => null;
 			end case;
 		end if;
 	end if;
 end process;
 
+-- TODO:
 -- send response to the avr:
 -- command 0x10:
 -- uart_txdata : 7 ... 0
@@ -99,15 +114,13 @@ end process;
 -- uart_rxrecv
 -- uart_data_read
 
-process (CLK)
-begin
-	if (rising_edge(CLK)) then 
-		O_RESET <= not(reset);
-		O_MAGICK <= not(magick);
-		O_TURBO <= not(turbo);
-		O_JOY <= not(joy);
-	end if;
-end process;
+O_RESET <= not(reset);
+O_MAGICK <= not(magick);
+O_TURBO <= not(turbo);
+O_JOY <= not(joy);
+O_ROM_BANK <= rom_bank;
+UART_TXBUSY <= txbusy;
+UART_RXDATA <= rxdata;
 
 --    
 process( CLK, kb_data, A)

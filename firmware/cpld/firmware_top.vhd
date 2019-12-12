@@ -156,61 +156,61 @@ architecture rtl of firmware_top is
 	signal reset : std_logic;
 	signal turbo : std_logic; -- TODO
 	
---	-- ZXUNO ports
---	signal zxuno_regrd : std_logic;
---	signal zxuno_regwr : std_logic;
---	signal zxuno_addr : std_logic_vector(7 downto 0);
---	signal zxuno_regaddr_changed : std_logic;
---	signal zxuno_addr_oe_n : std_logic;
---	signal zxuno_addr_to_cpu : std_logic_vector(7 downto 0);
---
---	-- UART 
---	signal uart_oe_n   : std_logic := '1';
---	signal uart_do_bus : std_logic_vector(7 downto 0);
---	
---	-- UART - AVR signals
---	signal uart_avr_txdata : std_logic_vector(7 downto 0);
---	signal uart_avr_txbegin : std_logic;
---	signal uart_avr_txbusy : std_logic;
---	signal uart_avr_rxdata : std_logic_vector(7 downto 0);
---	signal uart_avr_rxrecv : std_logic;
---	signal uart_avr_data_read : std_logic;
---	
---	component zxunoregs
---	port (
---		clk: in std_logic;
---		rst_n : in std_logic;
---		a : in std_logic_vector(15 downto 0);
---		iorq_n : in std_logic;
---		rd_n : in std_logic;
---		wr_n : in std_logic;
---		din : in std_logic_vector(7 downto 0);
---		dout : out std_logic_vector(7 downto 0);
---		oe_n : out std_logic;
---		addr : out std_logic_vector(7 downto 0);
---		read_from_reg: out std_logic;
---		write_to_reg: out std_logic;
---		regaddr_changed: out std_logic);
---	end component;
---	
---	component zxunouart
---	port (
---		clk : in std_logic;
---		zxuno_addr : in std_logic_vector(7 downto 0);
---		zxuno_regrd : in std_logic;
---		zxuno_regwr : in std_logic;
---		din : in std_logic_vector(7 downto 0);
---		dout : out std_logic_vector(7 downto 0);
---		oe_n : out std_logic;
---		
---      txdata : out std_logic_vector(7 downto 0);
---      txbegin : out std_logic;
---      txbusy : in std_logic;
---      rxdata : in std_logic_vector(7 downto 0);
---      rxrecv : out std_logic;
---      data_read : out std_logic		
---		);
---	end component;
+	-- ZXUNO ports
+	signal zxuno_regrd : std_logic;
+	signal zxuno_regwr : std_logic;
+	signal zxuno_addr : std_logic_vector(7 downto 0);
+	signal zxuno_regaddr_changed : std_logic;
+	signal zxuno_addr_oe_n : std_logic;
+	signal zxuno_addr_to_cpu : std_logic_vector(7 downto 0);
+
+	-- UART 
+	signal uart_oe_n   : std_logic := '1';
+	signal uart_do_bus : std_logic_vector(7 downto 0);
+	
+	-- UART - AVR signals
+	signal uart_avr_txdata : std_logic_vector(7 downto 0);
+	signal uart_avr_txbegin : std_logic;
+	signal uart_avr_txbusy : std_logic;
+	signal uart_avr_rxdata : std_logic_vector(7 downto 0);
+	signal uart_avr_rxrecv : std_logic;
+	signal uart_avr_data_read : std_logic;
+	
+	component zxunoregs
+	port (
+		clk: in std_logic;
+		rst_n : in std_logic;
+		a : in std_logic_vector(15 downto 0);
+		iorq_n : in std_logic;
+		rd_n : in std_logic;
+		wr_n : in std_logic;
+		din : in std_logic_vector(7 downto 0);
+		dout : out std_logic_vector(7 downto 0);
+		oe_n : out std_logic;
+		addr : out std_logic_vector(7 downto 0);
+		read_from_reg: out std_logic;
+		write_to_reg: out std_logic;
+		regaddr_changed: out std_logic);
+	end component;
+	
+	component zxunouart
+	port (
+		clk : in std_logic;
+		zxuno_addr : in std_logic_vector(7 downto 0);
+		zxuno_regrd : in std_logic;
+		zxuno_regwr : in std_logic;
+		din : in std_logic_vector(7 downto 0);
+		dout : out std_logic_vector(7 downto 0);
+		oe_n : out std_logic;
+		
+      txdata : out std_logic_vector(7 downto 0);
+      txbegin : out std_logic;
+      txbusy : in std_logic;
+      rxdata : in std_logic_vector(7 downto 0);
+      rxrecv : out std_logic;
+      data_read : out std_logic		
+		);
+	end component;
 
 begin
 
@@ -307,8 +307,8 @@ begin
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
-		--zxuno_addr_to_cpu when zxuno_addr_oe_n = '0' else 					 -- ZXUNO control register
-		--uart_do_bus when uart_oe_n = '0' else									 -- ZXUNO UART
+		zxuno_addr_to_cpu when zxuno_addr_oe_n = '0' else 					 -- ZXUNO control register
+		uart_do_bus when uart_oe_n = '0' else									 -- ZXUNO UART
 		--"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
 		--attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
@@ -441,8 +441,10 @@ begin
 	U2: entity work.cpld_kbd 
 	port map (
 		CLK => CLK28,
+		
 		A => A(15 downto 8),
 		KB => kb,
+		
 		AVR_SCK => KEY_SCK,
 		AVR_MOSI => KEY_MOSI,
 		AVR_MISO => KEY_MISO,
@@ -451,7 +453,14 @@ begin
 		O_RESET => reset,
 		O_TURBO => turbo,
 		O_MAGICK => nmi,
-		O_JOY => joy
+		O_JOY => joy,
+
+		UART_TXDATA => uart_avr_txdata,
+		UART_TXBEGIN => uart_avr_txbegin,
+		UART_TXBUSY => uart_avr_txbusy,
+		UART_RXDATA => uart_avr_rxdata,
+		UART_RXRECV => uart_avr_rxrecv,
+		UART_DATA_READ => uart_avr_data_read
 	);
 	
 	-- video module
@@ -499,6 +508,7 @@ begin
 		D => VD
 	);	
 
+-- -- alternate scandoubler implementation
 --	U4: entity work.scan_convert 
 --	port map ( 
 --		I_RGBI => rgb & i,
@@ -519,39 +529,39 @@ begin
 --		N_VWE => N_VWE
 --	);
 
---	-- UART (via ZX UNO ports #FC3B / #FD3B) 
---	U5: zxunoregs 
---	port map(
---		clk => CLK28,
---		rst_n => N_RESET,
---		a => A,
---		iorq_n => N_IORQ,
---		rd_n => N_RD,
---		wr_n => N_WR,
---		din => D,
---		dout => zxuno_addr_to_cpu,
---		oe_n => zxuno_addr_oe_n,
---		addr => zxuno_addr,
---		read_from_reg => zxuno_regrd,
---		write_to_reg => zxuno_regwr,
---		regaddr_changed => zxuno_regaddr_changed);
---
---	U6: zxunouart 
---	port map(
---		clk => CLK_7,
---		zxuno_addr => zxuno_addr,
---		zxuno_regrd => zxuno_regrd,
---		zxuno_regwr => zxuno_regwr,
---		din => D,
---		dout => uart_do_bus,
---		oe_n => uart_oe_n,
---		
---		txdata => uart_avr_txdata,
---      txbegin => uart_avr_txbegin,
---      txbusy => uart_avr_txbusy,
---      rxdata => uart_avr_rxdata,
---      rxrecv => uart_avr_rxrecv,
---      data_read => uart_avr_data_read
---);
+	-- UART (via ZX UNO ports #FC3B / #FD3B) 
+	U5: zxunoregs 
+	port map(
+		clk => CLK28,
+		rst_n => N_RESET,
+		a => A,
+		iorq_n => N_IORQ,
+		rd_n => N_RD,
+		wr_n => N_WR,
+		din => D,
+		dout => zxuno_addr_to_cpu,
+		oe_n => zxuno_addr_oe_n,
+		addr => zxuno_addr,
+		read_from_reg => zxuno_regrd,
+		write_to_reg => zxuno_regwr,
+		regaddr_changed => zxuno_regaddr_changed);
+
+	U6: zxunouart 
+	port map(
+		clk => CLK_7,
+		zxuno_addr => zxuno_addr,
+		zxuno_regrd => zxuno_regrd,
+		zxuno_regwr => zxuno_regwr,
+		din => D,
+		dout => uart_do_bus,
+		oe_n => uart_oe_n,
+		
+		txdata => uart_avr_txdata,
+      txbegin => uart_avr_txbegin,
+      txbusy => uart_avr_txbusy,
+      rxdata => uart_avr_rxdata,
+      rxrecv => uart_avr_rxrecv,
+      data_read => uart_avr_data_read
+);
 	
 end;
