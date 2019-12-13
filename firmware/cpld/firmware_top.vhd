@@ -9,6 +9,16 @@ use IEEE.std_logic_1164.all;
 use IEEE.numeric_std.all;
 
 entity firmware_top is
+	generic (
+		-- mark active area of input video
+		ram_ext_std     : integer range 0 to 3 := 2; -- 0 - pentagon-512 via 6,7 bits of the #7FFD port (bit 5 is for 48k lock)
+																   -- 1 - pentagon-1024 via 5,6,7 bits of the #7FFD port (no 48k lock)
+																   -- 2 - profi-1024 via 0,1,2 bits of the #DFFD port
+																   -- 3 - pentagon-128
+		enable_timex	 : boolean := false;
+		enable_divmmc 	 : boolean := true;
+		enable_vga 		 : boolean := true
+	);
 	port(
 		-- Clock
 		CLK28				: in std_logic;
@@ -101,14 +111,6 @@ architecture rtl of firmware_top is
 																	  -- D7 - not used
 																	  
 	signal ram_ext : std_logic_vector(2 downto 0) := "000";
-
-	signal ram_ext_std: std_logic_vector(1 downto 0) := "00"; -- 00 - pentagon-512 via 6,7 bits of the #7FFD port (bit 5 is for 48k lock)
-																				 -- 01 - pentagon-1024 via 5,6,7 bits of the #7FFD port (no 48k lock)
-																				 -- 10 - profi-1024 via 0,1,2 bits of the #DFFD port
-																				 -- 11 - pentagon-128
-
-																					
-																				 
 	signal ram_do : std_logic_vector(7 downto 0);
 	signal ram_oe_n : std_logic := '1';
 	
@@ -146,11 +148,15 @@ architecture rtl of firmware_top is
 	signal joy : std_logic_vector(4 downto 0) := "11111";
 	signal nmi : std_logic;
 	signal reset : std_logic;
-	signal turbo : std_logic; -- TODO
+	signal turbo : std_logic;
+	
+	signal r_vga: std_logic_vector(1 downto 0);
+	signal g_vga: std_logic_vector(1 downto 0);
+	signal b_vga: std_logic_vector(1 downto 0);
+	signal hsync_vga : std_logic;
+	signal vsync_vga : std_logic;
 
 begin
-
-	ram_ext_std <= "10"; -- profi-1024
 
 	divmmc_rom <= '1' when (divmmc_disable_zxrom = '1' and divmmc_eeprom_cs_n = '0') else '0';
 	divmmc_ram <= '1' when (divmmc_disable_zxrom = '1' and divmmc_sram_cs_n = '0') else '0';
@@ -202,11 +208,11 @@ begin
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
-		"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
+		"00" & timexcfg_reg when enable_timex = true and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
 		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
-	divmmc_enable <= '1';
+	divmmc_enable <= '1' when enable_divmmc else '0';
 	
 	-- clocks
 	process (CLK28)
@@ -226,7 +232,7 @@ begin
 
 
 	-- ports, write by CPU
-	process( clk28, clk_14, clk_7, N_RESET, A, D, port_write, port_7ffd, N_M1, N_MREQ, ram_ext_std )
+	process( clk28, clk_14, clk_7, N_RESET, A, D, port_write, port_7ffd, N_M1, N_MREQ )
 	begin
 		if N_RESET = '0' then
 			port_7ffd <= "00000000";
@@ -240,22 +246,22 @@ begin
 
 					 -- port #7FFD  
 					if A(15)='0' and A(1) = '0' then -- short decoding #FD
-						if ram_ext_std = "00" and port_7ffd(5) = '0' then -- penragon-512
+						if ram_ext_std = 0 and port_7ffd(5) = '0' then -- penragon-512
 							port_7ffd <= D;
 							ram_ext <= '0' & D(6) & D(7); 
-						elsif ram_ext_std = "01" then -- pentagon-1024
+						elsif ram_ext_std = 1 then -- pentagon-1024
 							port_7ffd <= D;
 							ram_ext <= D(5) & D(6) & D(7);
-						elsif ram_ext_std = "10" and port_7ffd(5) = '0' then -- profi 1024
+						elsif ram_ext_std = 2 and port_7ffd(5) = '0' then -- profi 1024
 							port_7ffd <= D;
-						elsif ram_ext_std = "11" and port_7ffd(5) = '0' then -- pentagon-128
+						elsif ram_ext_std = 3 and port_7ffd(5) = '0' then -- pentagon-128
 							port_7ffd <= D;
 							ram_ext <= "000";
 						end if;
 					end if;
 					
 					-- port #DFFD (profi ram ext)
-					if ram_ext_std = "10" and A = X"DFFD" and port_7ffd(5) = '0' and fd_port='1' then
+					if ram_ext_std = 3 and A = X"DFFD" and port_7ffd(5) = '0' and fd_port='1' then
 							ram_ext <= D(2 downto 0);
 					end if;
 					
@@ -266,7 +272,7 @@ begin
 					end if;
 					
 					-- port FF / timex CFG
-					if (A(7 downto 0) = X"FF") then 
+					if (A(7 downto 0) = X"FF" and enable_timex) then 
 						timexcfg_reg(5 downto 0) <= D(5 downto 0);
 						is_port_ff <= '1';
 					end if;
@@ -410,14 +416,21 @@ begin
 		VCNT_IN => vcnt,
 		F28 => CLK28,
 		F14 => CLK_14,
-		R_VGA => VGA_R,
-		G_VGA => VGA_G,
-		B_VGA => VGA_B,
-		HSYNC_VGA => VGA_HSYNC,
-		VSYNC_VGA => VGA_VSYNC,
+		R_VGA => r_vga,
+		G_VGA => g_vga,
+		B_VGA => b_vga,
+		HSYNC_VGA => hsync_vga,
+		VSYNC_VGA => vsync_vga,
 		A => VA,
 		WE => N_VWE,
 		D => VD
 	);	
+	
+	VGA_R <= r_vga when enable_vga else rgb(2) & i;
+	VGA_G <= g_vga when enable_vga else rgb(1) & i;
+	VGA_B <= b_vga when enable_vga else rgb(0) & i;
+	VGA_HSYNC <= hsync_vga when enable_vga else hsync;
+	VGA_VSYNC <= vsync_vga when enable_vga else vsync;
+	
 	
 end;
