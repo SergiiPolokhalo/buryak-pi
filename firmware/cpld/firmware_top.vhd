@@ -261,7 +261,7 @@ begin
 					end if;
 					
 					-- port #DFFD (profi ram ext)
-					if ram_ext_std = 3 and A = X"DFFD" and port_7ffd(5) = '0' and fd_port='1' then
+					if ram_ext_std = 2 and A = X"DFFD" and port_7ffd(5) = '0' and fd_port='1' then
 							ram_ext <= D(2 downto 0);
 					end if;
 					
