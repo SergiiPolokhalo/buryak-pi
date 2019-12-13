@@ -10,6 +10,7 @@ use IEEE.std_logic_unsigned.all;
 entity video is
 	port (
 		CLK		: in std_logic;							-- системная частота
+		CLK28 	: in std_logic;
 		ENA7		: in std_logic;							-- 7MHz ticks
 		BORDER	: in std_logic_vector(2 downto 0);	-- цвет бордюра (порт #xxFE)
 		TIMEXCFG : in std_logic_vector(5 downto 0);  -- порт Timex (#xxFF)
@@ -45,6 +46,7 @@ architecture rtl of video is
 	
 	signal attr     : std_logic_vector(7 downto 0);
 	signal bitmap    : std_logic_vector(7 downto 0);
+	
 	signal shift_hr : std_logic_vector(15 downto 0);
 	
 	signal paper_r  : std_logic;
@@ -239,10 +241,10 @@ begin
 	end process;
 	
 	-- video mem read cycle
-	process (CLK, ENA7, chr_col_cnt, timex_page, ver_cnt, chr_row_cnt, hor_cnt, DI)
+	process (CLK28, CLK, ENA7, chr_col_cnt, timex_page, ver_cnt, chr_row_cnt, hor_cnt, DI)
 	begin 
-		if (CLK'event and CLK = '1') then 
-			if chr_col_cnt(0) = '1' and ENA7 = '0' then
+		if (CLK28'event and CLK28 = '1') then 
+			if (TURBO = '0' and chr_col_cnt(0) = '1' and ENA7 = '0' and CLK='1') or (TURBO = '1' and ENA7 = '0' and CLK = '0') then
 				if VBUS_MODE = '1' then
 					if VID_RD = '0' then 
 						bitmap <= DI;

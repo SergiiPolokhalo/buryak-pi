@@ -145,7 +145,6 @@ architecture rtl of firmware_top is
 	signal kb : std_logic_vector(4 downto 0) := "11111";
 	signal joy : std_logic_vector(4 downto 0) := "11111";
 	signal nmi : std_logic;
-	signal i_vga : std_logic_vector(2 downto 0) := "000";
 	signal reset : std_logic;
 	signal turbo : std_logic; -- TODO
 
@@ -281,6 +280,7 @@ begin
 	-- memory arbiter
 	U0: entity work.memory 
 	port map ( 
+		CLK28 => CLK28,
 		CLK14 => CLK_14,
 		CLK7  => CLK_7,
 		HCNT0 => hcnt(0),
@@ -379,6 +379,7 @@ begin
 	U3: entity work.video 
 	port map (
 		CLK => CLK_14,
+		CLK28 => CLK28,
 		ENA7 => CLK_7,
 		BORDER => border_attr,
 		TIMEXCFG => timexcfg_reg,
