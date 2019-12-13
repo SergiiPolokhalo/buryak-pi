@@ -79,11 +79,9 @@ architecture rtl of firmware_top is
 
 	signal clk_14 		: std_logic := '0';
 	signal clk_7 		: std_logic := '0';
+	signal clkcpu 		: std_logic := '1';
 
-	signal buf_md		: std_logic_vector(7 downto 0) := "11111111";
-	signal is_buf_wr	: std_logic := '0';	
-	
---	signal attr_r   	: std_logic_vector(7 downto 0);
+	signal attr_r   	: std_logic_vector(7 downto 0);
 	signal rgb 	 		: std_logic_vector(2 downto 0);
 	signal i 			: std_logic;
 	signal vid_a 		: std_logic_vector(13 downto 0);
@@ -109,27 +107,22 @@ architecture rtl of firmware_top is
 																				 -- 10 - profi-1024 via 0,1,2 bits of the #DFFD port
 																				 -- 11 - pentagon-128
 
+																					
+																				 
+	signal ram_do : std_logic_vector(7 downto 0);
+	signal ram_oe_n : std_logic := '1';
+	
 	signal fd_port : std_logic;
 	signal fd_sel : std_logic;	
 																	  
 	signal ay_port		: std_logic := '0';
 		
-	signal vbus_req	: std_logic := '1';
-	signal vbus_ack	: std_logic := '1';
-	signal vbus_mode	: std_logic := '1';	
-	signal vbus_rdy	: std_logic := '1';
-	
+	signal vbus_mode  : std_logic := '0';
 	signal vid_rd		: std_logic := '0';
 	
 	signal hsync     	: std_logic := '1';
 	signal vsync     	: std_logic := '1';
 
-	signal n_is_ram   : std_logic := '1';
-	signal ram_page	: std_logic_vector(6 downto 0) := "0000000";
-
-	signal n_is_rom   : std_logic := '1';
-	signal rom_page	: std_logic_vector(1 downto 0) := "00";
-	
 	signal sound_out 	: std_logic := '0';
 	signal port_read	: std_logic := '0';
 	signal port_write	: std_logic := '0';
@@ -219,58 +212,13 @@ begin
 	divmmc_rom <= '1' when (divmmc_disable_zxrom = '1' and divmmc_eeprom_cs_n = '0') else '0';
 	divmmc_ram <= '1' when (divmmc_disable_zxrom = '1' and divmmc_sram_cs_n = '0') else '0';
 	
-	n_is_rom <= '0' when N_MREQ = '0' and ((A(15 downto 14)  = "00" and divmmc_rom = '0' and divmmc_ram = '0') or divmmc_rom = '1') else '1';
-	n_is_ram <= '0' when N_MREQ = '0' and ((A(15 downto 14) /= "00" and divmmc_rom = '0' and divmmc_ram = '0') or divmmc_ram = '1') else '1';
-
-	-- speccy ROM banks map (A14, A15):
-	-- 00 - bank 0, ESXDOS 0.8.7
-	-- 01 - bank 1, empty
-	-- 10 - bank 2, Basic-128
-	-- 11 - bank 3, Basic-48
-	rom_page <= "00" when divmmc_rom = '1' else '1' & (port_7ffd(4));
-	ROM_A(14) <= rom_page(0);
-	ROM_A(15) <= rom_page(1);	
-	
-	N_ROMCS <= '0' when n_is_rom = '0' and N_RD = '0' else '1';
-	N_ROMWE <= '1';
-
-	ram_page <=	
-				"10" & divmmc_sram_hiaddr(5 downto 1) when divmmc_ram = '1' else
-				"0000000" when A(15) = '0' and A(14) = '0' else
-				"0000101" when A(15) = '0' and A(14) = '1' else
-				"0000010" when A(15) = '1' and A(14) = '0' else
-				"0" & ram_ext(2 downto 0) & port_7ffd(2 downto 0);
-
-	MA(13 downto 0) <= 
-		divmmc_sram_hiaddr(0) & A(12 downto 0) when vbus_mode = '0' and divmmc_ram = '1' else -- divmmc ram 
-		A(13 downto 0) when vbus_mode = '0' else -- spectrum ram 
-		vid_a; -- video ram
-
-	MA(14) <= ram_page(0) when vbus_mode = '0' else '1';
-	MA(15) <= ram_page(1) when vbus_mode = '0' else port_7ffd(3);
-	MA(16) <= ram_page(2) when vbus_mode = '0' else '1';
-	MA(17) <= ram_page(3) when vbus_mode = '0' else '0';
-	MA(18) <= ram_page(4) when vbus_mode = '0' else '0';
-	MA(19) <= ram_page(5) when vbus_mode = '0' else '0';
-	MA(20) <= ram_page(6) when vbus_mode = '0' else '0';
-	
-	MD(7 downto 0) <= 
-		D(7 downto 0) when vbus_mode = '0' and ((n_is_ram = '0' or (N_IORQ = '0' and N_M1 = '1')) and N_WR = '0') else 
-		(others => 'Z');
-
-	vbus_req <= '0' when ( N_MREQ = '0' or N_IORQ = '0' ) and ( N_WR = '0' or N_RD = '0' ) else '1';
-	vbus_rdy <= '0' when clk_7 = '0' or hcnt(0) = '0' else '1';
-	
-	N_MRD <= '0' when (vbus_mode = '1' and vbus_rdy = '0') or (vbus_mode = '0' and N_RD = '0' and N_MREQ = '0') else '1';  
-	N_MWR <= '0' when vbus_mode = '0' and n_is_ram = '0' and N_WR = '0' and hcnt(0) = '0' else '1';
+	N_ROMWE <= '1';	
 
 	BEEPER <= sound_out;
 
 	ay_port <= '1' when A(7 downto 0) = x"FD" and A(15)='1' and fd_port = '1' else '0';
 	AY_BC1 <= '1' when ay_port = '1' and A(14) = '1' and N_IORQ = '0' and (N_WR='0' or N_RD='0') else '0';
-	AY_BDIR <= '1' when ay_port = '1' and N_IORQ = '0' and N_WR = '0' else '0';
-	
-	is_buf_wr <= '1' when vbus_mode = '0' and hcnt(0) = '0' else '0';
+	AY_BDIR <= '1' when ay_port = '1' and N_IORQ = '0' and N_WR = '0' else '0';	
 	
 	N_NMI <= '0' when N_BTN_NMI = '0' or nmi = '0' else '1';
 	N_RESET <= '0' when reset = '0' else 'Z';
@@ -288,29 +236,33 @@ begin
 	 end process;
 
 	-- CPU clock 
-	process( N_RESET, clk_14, clk_7, hcnt )
+	process( N_RESET, clk28, clk_14, clk_7, hcnt )
 	begin
 		if clk_14'event and clk_14 = '1' then
-			if clk_7 = '1' then
-				CLK_CPU <= hcnt(0);
+			if (turbo = '1') then
+				clkcpu <= clk_7;
+			elsif clk_7 = '1' then
+				clkcpu <= hcnt(0);
 			end if;
 		end if;
 	end process;
+	
+	CLK_CPU <= clkcpu;
 	
 	port_write <= '1' when N_IORQ = '0' and N_WR = '0' and N_M1 = '1' and vbus_mode = '0' else '0';
 	port_read <= '1' when N_IORQ = '0' and N_RD = '0' and N_M1 = '1' else '0';
 	
 	-- read ports by CPU
 	D(7 downto 0) <= 
-		buf_md(7 downto 0) when n_is_ram = '0' and N_RD = '0' else 		 -- MD buf	
+		ram_do when ram_oe_n = '0' else -- #memory
 		port_7ffd when port_read = '1' and A(15)='0' and A(1)='0' else  -- #7FFD - system port 
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
 		--zxuno_addr_to_cpu when zxuno_addr_oe_n = '0' else 					 -- ZXUNO control register
 		--uart_do_bus when uart_oe_n = '0' else									 -- ZXUNO UART
-		--"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
-		--attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
+		"00" & timexcfg_reg when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
+		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
 	divmmc_enable <= '1';
@@ -330,33 +282,10 @@ begin
 		end if;
 	end process;
 	
-	-- fill memory buf
-	process(is_buf_wr)
-	begin 
-		if (is_buf_wr'event and is_buf_wr = '0') then  -- high to low transition to lattch the MD into BUF
-			buf_md(7 downto 0) <= MD(7 downto 0);
-		end if;
-	end process;	
-	
-	-- video mem
-	process( clk_14, clk_7, hcnt, vbus_mode, vid_rd, vbus_req, vbus_ack )
-	begin
-		-- lower edge of 7 mhz clock
-		if clk_14'event and clk_14 = '1' then 
-			if hcnt(0) = '1' and clk_7 = '0' then
-				if vbus_req = '0' and vbus_ack = '1' then
-					vbus_mode <= '0';
-				else
-					vbus_mode <= '1';
-					vid_rd <= not vid_rd;
-				end if;	
-				vbus_ack <= vbus_req;
-			end if;
-		end if;
-	end process;
+
 
 	-- ports, write by CPU
-	process( clk_14, clk_7, N_RESET, A, D, port_write, port_7ffd, N_M1, N_MREQ, ram_ext_std )
+	process( clk28, clk_14, clk_7, N_RESET, A, D, port_write, port_7ffd, N_M1, N_MREQ, ram_ext_std )
 	begin
 		if N_RESET = '0' then
 			port_7ffd <= "00000000";
@@ -365,7 +294,7 @@ begin
 			timexcfg_reg <= (others => '0');
 			is_port_ff <= '0';
 		elsif clk_14'event and clk_14 = '1' then 
-			if clk_7 = '1' then
+			--if clk_7 = '1' then
 				if port_write = '1' then
 
 					 -- port #7FFD  
@@ -403,10 +332,60 @@ begin
 					
 				end if;
 				
-			end if;
+			--end if;
 		end if;
 	end process;	
 
+	-- memory arbiter
+	U0: entity work.memory 
+	port map ( 
+		CLK14 => CLK_14,
+		CLK7  => CLK_7,
+		HCNT0 => hcnt(0),
+		TURBO => turbo,
+		
+		-- cpu signals
+		A => A,
+		D => D,
+		N_MREQ => N_MREQ,
+		N_IORQ => N_IORQ,
+		N_WR => N_WR,
+		N_RD => N_RD,
+		N_M1 => N_M1,
+
+		-- ram 
+		MA => MA,
+		MD => MD,
+		N_MRD => N_MRD,
+		N_MWR => N_MWR,
+		
+		-- ram out to cpu
+		DO => ram_do,
+		N_OE => ram_oe_n,
+		
+		-- ram pages
+		RAM_BANK => port_7ffd(2 downto 0),
+		RAM_EXT => ram_ext,
+
+		-- divmmc
+		DIVMMC_A => divmmc_sram_hiaddr,
+		IS_DIVMMC_RAM => divmmc_ram,
+		IS_DIVMMC_ROM => divmmc_rom,
+
+		-- video
+		VA => vid_a,
+		VID_PAGE => port_7ffd(3),
+
+		-- video bus control signals
+		VBUS_MODE_O => vbus_mode, -- video bus mode: 0 - ram, 1 - vram
+		VID_RD_O => vid_rd, -- read bitmap or attribute from video memory
+		
+		-- rom
+		ROM_BANK => port_7ffd(4),
+		ROM_A => ROM_A,
+		N_ROMCS => N_ROMCS		
+	);
+	
 	-- divmmc interface
 	U1: entity work.divmmc
 	port map (
@@ -462,10 +441,10 @@ begin
 		BORDER => border_attr,
 		TIMEXCFG => timexcfg_reg,
 		DI => MD,
-		TURBO => '0', -- TODO: turbo mode
-		INTA => '0', -- TOOD: int end for turbo
+		TURBO => turbo,
+		INTA => N_IORQ or N_M1,
 		INT => N_INT,
-		ATTR_O => open, --attr_r, 
+		ATTR_O => attr_r, 
 		A => vid_a,
 		BLANK => open,
 		RGB => rgb,

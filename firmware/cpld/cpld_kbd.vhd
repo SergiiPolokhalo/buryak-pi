@@ -104,7 +104,7 @@ begin
 	if (rising_edge(CLK)) then 
 		O_RESET <= not(reset);
 		O_MAGICK <= not(magick);
-		O_TURBO <= not(turbo);
+		O_TURBO <= turbo;
 		O_JOY <= not(joy);
 	end if;
 end process;

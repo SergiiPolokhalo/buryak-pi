@@ -228,3 +228,4 @@ set_global_assignment -name VHDL_FILE spi_slave.vhd
 set_global_assignment -name VHDL_FILE cpld_kbd.vhd
 set_global_assignment -name VHDL_FILE divmmc.vhd
 set_global_assignment -name VHDL_FILE firmware_top.vhd
+set_global_assignment -name VHDL_FILE memory.vhd
