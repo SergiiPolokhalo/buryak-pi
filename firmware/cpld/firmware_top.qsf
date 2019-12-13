@@ -219,10 +219,7 @@ set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL OFF
 set_global_assignment -name OPTIMIZE_POWER_DURING_SYNTHESIS OFF
 set_global_assignment -name PARALLEL_SYNTHESIS OFF
 set_global_assignment -name SYNTH_MESSAGE_LEVEL HIGH
-set_global_assignment -name VERILOG_FILE zxunouart.v
-set_global_assignment -name VERILOG_FILE zxunoregs.v
 set_global_assignment -name VHDL_FILE vga_pal.vhd
-set_global_assignment -name VHDL_FILE scan_converter.vhd
 set_global_assignment -name VHDL_FILE video.vhd
 set_global_assignment -name VHDL_FILE spi_slave.vhd
 set_global_assignment -name VHDL_FILE cpld_kbd.vhd

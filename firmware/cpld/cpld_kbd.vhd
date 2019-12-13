@@ -82,22 +82,11 @@ begin
 								  turbo <= spi_do(1); 
 								  magick <= spi_do(2); 
 								  joy <= spi_do(7 downto 3);
---				when X"07" => rom_bank <= spi_do(2 downto 0);
---								  uart_txbusy <= spi_do(7);
---				when X"08" => uart_rxdata <= spi_do(7 downto 0);
 				when others => null;
 			end case;
 		end if;
 	end if;
 end process;
-
--- send response to the avr:
--- command 0x10:
--- uart_txdata : 7 ... 0
--- command 0x11:
--- uart_txbegin 
--- uart_rxrecv
--- uart_data_read
 
 process (CLK)
 begin

@@ -25,7 +25,6 @@ HCNT_IN		: in std_logic_vector(8 downto 0);
 VCNT_IN 		: in std_logic_vector(8 downto 0);
 F28			: in std_logic := '1';
 F14 			: in std_logic := '1';
-F7 			: in std_logic := '1';
 
 --------------------------------------------------------------------------------
 --                     ВЫХОДНЫЕ ПОРТЫ ПЛИС ДЛЯ VGA                    090728  --
