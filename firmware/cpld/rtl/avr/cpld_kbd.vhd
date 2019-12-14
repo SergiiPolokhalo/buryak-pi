@@ -18,7 +18,7 @@ port (
 	O_RESET		: out std_logic;
 	O_TURBO		: out std_logic;
 	O_MAGICK	: out std_logic;
-	O_BANK	: out std_logic_vector(2 downto 0);
+	O_IS_DIVMMC_BANK	: out std_logic;
 	
 	O_JOY : out std_logic_vector(4 downto 0)
 );
@@ -39,7 +39,7 @@ architecture RTL of cpld_kbd is
 	 signal spi_do : std_logic_vector(15 downto 0);
 	 
 	 signal joy : std_logic_vector(4 downto 0);
-	 signal bank : std_logic_vector(2 downto 0) := "000";
+	 signal is_divmmc_bank : std_logic := '0';
 
 begin
 
@@ -85,29 +85,14 @@ begin
 								  magick <= spi_do(2); 
 								  joy <= spi_do(7 downto 3);
 				when X"07" => 
-								  bank(2 downto 0) <= spi_do(2 downto 0);
+								  if (spi_do(2 downto 0) = "000") then 
+									is_divmmc_bank <= '1';
+								  else 
+									is_divmmc_bank <= '0';
+								  end if;
 				when others => null;
 			end case;
 		end if;
-	end if;
-end process;
-
-process (CLK)
-begin
-	if (rising_edge(CLK)) then 
-		O_RESET <= not(reset);
-		O_MAGICK <= not(magick);
-		O_TURBO <= turbo;
-		O_JOY <= not(joy);
-	end if;
-end process;
-
-process (reset, bank)
-begin 
-	if (reset = '1') then 
-		O_BANK <= "000";
-	else 
-		O_BANK <= "00" & bank(0);
 	end if;
 end process;
 
@@ -115,6 +100,13 @@ end process;
 process( CLK, kb_data, A)
 begin
 	if (rising_edge(CLK)) then
+	
+		O_RESET <= not(reset);
+		O_MAGICK <= not(magick);
+		O_TURBO <= turbo;
+		O_JOY <= not(joy);
+		O_IS_DIVMMC_BANK <= is_divmmc_bank;
+
 				KB(0) <=	not(( kb_data(0)  and not(A(8)  ) ) 
 							or    ( kb_data(1)  and not(A(9)  ) ) 
 							or    ( kb_data(2) and not(A(10) ) ) 

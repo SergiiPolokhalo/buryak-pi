@@ -15,10 +15,10 @@ entity firmware_top is
 																      -- 1 - pentagon-1024 via 5,6,7 bits of the #7FFD port (no 48k lock)
 																      -- 2 - profi-1024 via 0,1,2 bits of the #DFFD port
 																      -- 3 - pentagon-128
-		enable_timex	    : boolean := false;
-		enable_divmmc 	    : boolean := true;
-		enable_zcontroller : boolean := true;
-		enable_vga 		    : boolean := true
+		enable_divmmc 	     : boolean := false;
+		enable_zcontroller  : boolean := true;
+		enable_kempston_joy : boolean := true;
+		enable_port_ff 	  : boolean := true
 	);
 	port(
 		-- Clock
@@ -98,9 +98,6 @@ architecture rtl of firmware_top is
 	signal vid_a 		: std_logic_vector(13 downto 0);
 	signal hcnt0 		: std_logic;
 	
-	signal timexcfg_reg : std_logic_vector(5 downto 0);
-	signal is_port_ff : std_logic := '0';	
-
 	signal border_attr: std_logic_vector(2 downto 0) := "000";
 
 	signal port_7ffd	: std_logic_vector(7 downto 0); -- D0-D2 - RAM page from address #C000
@@ -160,8 +157,7 @@ architecture rtl of firmware_top is
 	signal joy : std_logic_vector(4 downto 0) := "11111";
 	signal nmi : std_logic;
 	signal reset : std_logic;
-	signal turbo : std_logic;
-	signal bank : std_logic_vector(2 downto 0);
+	signal is_divmmc_bank : std_logic := '1';
 	
 	signal r_vga: std_logic_vector(1 downto 0);
 	signal g_vga: std_logic_vector(1 downto 0);
@@ -201,9 +197,7 @@ begin
 	process( N_RESET, clk28, clk_14, clk_7, hcnt0 )
 	begin
 		if clk_14'event and clk_14 = '1' then
-			if (turbo = '1') then
-				clkcpu <= clk_7;
-			elsif clk_7 = '1' then
+			if clk_7 = '1' then
 				clkcpu <= hcnt0;
 			end if;
 		end if;
@@ -219,15 +213,14 @@ begin
 		ram_do when ram_oe_n = '0' else -- #memory
 		port_7ffd when port_read = '1' and A(15)='0' and A(1)='0' else  -- #7FFD - system port 
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
-		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
-		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
+		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" and enable_kempston_joy else -- #1F - kempston joy
+		divmmc_do when enable_divmmc and divmmc_wr = '1' else 									 -- divMMC
 		zc_do_bus when port_read = '1' and A(7 downto 6) = "01" and A(4 downto 0) = "10111" and enable_zcontroller else -- Z-controller
-		"00" & timexcfg_reg when enable_timex = true and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
-		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
+		attr_r when enable_port_ff and port_read = '1' and A(7 downto 0) = x"FF" else -- #FF - attributes
 		"ZZZZZZZZ";
 
-	divmmc_enable <= '1' when enable_divmmc and bank = "000" else '0';
-	zc_enable <= '1' when enable_zcontroller and bank /= "000" else '0';
+	divmmc_enable <= '1' when enable_divmmc and is_divmmc_bank = '1' else '0';
+	zc_enable <= '1' when enable_zcontroller and is_divmmc_bank = '0' else '0';
 	
 	-- z-controller 
 	zc_wr <= '1' when (enable_zcontroller and N_IORQ = '0' and N_WR = '0' and A(7 downto 6) = "01" and A(4 downto 0) = "10111") else '0';
@@ -257,8 +250,6 @@ begin
 			port_7ffd <= "00000000";
 			ram_ext <= "000";
 			sound_out <= '0';
-			timexcfg_reg <= (others => '0');
-			is_port_ff <= '0';
 			if (enable_zcontroller) then 
 				trdos <= '1'; -- 1 - boot into service rom, 0 - boot into 128 menu
 			else 
@@ -295,19 +286,13 @@ begin
 						sound_out <= D(4); -- BEEPER
 					end if;
 					
-					-- port FF / timex CFG
-					if (A(7 downto 0) = X"FF" and enable_timex) then 
-						timexcfg_reg(5 downto 0) <= D(5 downto 0);
-						is_port_ff <= '1';
-					end if;
-					
 				end if;
 				
 				-- trdos flag
 				if enable_zcontroller and N_M1 = '0' and N_MREQ = '0' and A(15 downto 8) = X"3D" and port_7ffd(4) = '1' then 
 					trdos <= '1';
 				elsif enable_zcontroller and N_M1 = '0' and N_MREQ = '0' and A(15 downto 14) /= "00" then 
-					trdos <= '0'; 
+					trdos <= '0';
 				end if;
 				
 			--end if;
@@ -317,11 +302,9 @@ begin
 	-- memory arbiter
 	U1: entity work.memory 
 	port map ( 
-		CLK28 => CLK28,
 		CLK14 => CLK_14,
 		CLK7  => CLK_7,
 		HCNT0 => hcnt0,
-		TURBO => turbo,
 		
 		-- cpu signals
 		A => A,
@@ -402,7 +385,7 @@ begin
 	U3: entity work.zcontroller 
 	port map(
 		RESET => not(N_RESET),
-		CLK => CLK28,
+		CLK => CLK_7,
 		A => A(5),
 		DI => D,
 		DO => zc_do_bus,
@@ -417,9 +400,9 @@ begin
 	);
 
 	-- share SD card between DivMMC / ZC
-	N_SD_CS <= divmmc_sd_cs_n when enable_divmmc and bank="000" else zc_sd_cs_n when enable_zcontroller else '1';
-	SD_CLK <= divmmc_sd_clk when enable_divmmc and bank="000" else zc_sd_clk when enable_zcontroller else '1';
-	SD_DI <= divmmc_sd_di when enable_divmmc and bank="000" else zc_sd_di when enable_zcontroller else '1';
+	N_SD_CS <= divmmc_sd_cs_n when enable_divmmc and is_divmmc_bank = '1' else zc_sd_cs_n when enable_zcontroller else '1';
+	SD_CLK <= divmmc_sd_clk when enable_divmmc and is_divmmc_bank = '1' else zc_sd_clk when enable_zcontroller else '1';
+	SD_DI <= divmmc_sd_di when enable_divmmc and is_divmmc_bank = '1' else zc_sd_di when enable_zcontroller else '1';
 	
 	-- keyboard
 	U4: entity work.cpld_kbd 
@@ -433,23 +416,19 @@ begin
 		AVR_SS => KEY_SS,
 		
 		O_RESET => reset,
-		O_TURBO => turbo,
+		O_TURBO => open,
 		O_MAGICK => nmi,
 		O_JOY => joy,
-		O_BANK => bank
+		O_IS_DIVMMC_BANK => is_divmmc_bank
 	);
 	
 	-- video module
 	U5: entity work.video 
 	port map (
 		CLK => CLK_14,
-		CLK28 => CLK28,
 		ENA7 => CLK_7,
 		BORDER => border_attr,
-		TIMEXCFG => timexcfg_reg,
 		DI => MD,
-		TURBO => turbo,
-		INTA => N_IORQ or N_M1,
 		INT => N_INT,
 		ATTR_O => attr_r, 
 		A => vid_a,
@@ -469,24 +448,16 @@ begin
 		RGBI_IN => rgb & i,
       HSYNC_IN => hsync,
 		VSYNC_IN => vsync,
-		F28 => CLK28,
-		F14 => CLK_14,
-		R_VGA => r_vga,
-		G_VGA => g_vga,
-		B_VGA => b_vga,
-		HSYNC_VGA => hsync_vga,
-		VSYNC_VGA => vsync_vga,
+		F28 => not CLK28,
+		F14 => not CLK_14,
+		R_VGA => VGA_R,
+		G_VGA => VGA_G,
+		B_VGA => VGA_B,
+		HSYNC_VGA => VGA_HSYNC,
+		VSYNC_VGA => VGA_VSYNC,
 		A => VA,
 		WE => N_VWE,
 		D => VD
 	);	
-	
-	-- Share VGA connector between RGB / VGA modes
-	VGA_R <= r_vga when enable_vga else rgb(2) & i;
-	VGA_G <= g_vga when enable_vga else rgb(1) & i;
-	VGA_B <= b_vga when enable_vga else rgb(0) & i;
-	VGA_HSYNC <= hsync_vga when enable_vga else hsync;
-	VGA_VSYNC <= vsync_vga when enable_vga else vsync;
-	
 	
 end;
