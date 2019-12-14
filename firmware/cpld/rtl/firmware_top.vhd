@@ -16,6 +16,7 @@ entity firmware_top is
 																      -- 2 - profi-1024 via 0,1,2 bits of the #DFFD port
 																      -- 3 - pentagon-128
 		enable_timex	    : boolean := false;
+		enable_port_ff 	 : boolean := true;
 		enable_divmmc 	    : boolean := true;
 		enable_zcontroller : boolean := false;
 		enable_vga 		    : boolean := true
@@ -221,7 +222,7 @@ begin
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
 		zc_do_bus when port_read = '1' and A(7 downto 6) = "01" and A(4 downto 0) = "10111" and enable_zcontroller else -- Z-controller
 		"00" & timexcfg_reg when enable_timex and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
-		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
+		attr_r when enable_port_ff and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
 	divmmc_enable <= '1' when enable_divmmc else '0';
@@ -434,7 +435,8 @@ begin
 		O_RESET => reset,
 		O_TURBO => turbo,
 		O_MAGICK => nmi,
-		O_JOY => joy
+		O_JOY => joy,
+		O_BANK => open
 	);
 	
 	-- video module
