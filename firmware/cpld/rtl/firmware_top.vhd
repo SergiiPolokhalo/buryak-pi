@@ -11,13 +11,14 @@ use IEEE.numeric_std.all;
 entity firmware_top is
 	generic (
 		-- mark active area of input video
-		ram_ext_std     : integer range 0 to 3 := 2; -- 0 - pentagon-512 via 6,7 bits of the #7FFD port (bit 5 is for 48k lock)
-																   -- 1 - pentagon-1024 via 5,6,7 bits of the #7FFD port (no 48k lock)
-																   -- 2 - profi-1024 via 0,1,2 bits of the #DFFD port
-																   -- 3 - pentagon-128
-		enable_timex	 : boolean := false;
-		enable_divmmc 	 : boolean := true;
-		enable_vga 		 : boolean := true
+		ram_ext_std        : integer range 0 to 3 := 2; -- 0 - pentagon-512 via 6,7 bits of the #7FFD port (bit 5 is for 48k lock)
+																      -- 1 - pentagon-1024 via 5,6,7 bits of the #7FFD port (no 48k lock)
+																      -- 2 - profi-1024 via 0,1,2 bits of the #DFFD port
+																      -- 3 - pentagon-128
+		enable_timex	    : boolean := false;
+		enable_divmmc 	    : boolean := true;
+		enable_zcontroller : boolean := false;
+		enable_vga 		    : boolean := true
 	);
 	port(
 		-- Clock
@@ -142,6 +143,17 @@ architecture rtl of firmware_top is
 	signal divmmc_sram_hiaddr : std_logic_vector(5 downto 0);
 	signal divmmc_sd_cs_n : std_logic;
 	signal divmmc_wr : std_logic;
+	signal divmmc_sd_di: std_logic;
+	signal divmmc_sd_clk: std_logic;
+	
+	signal zc_do_bus	: std_logic_vector(7 downto 0);
+	signal zc_wr 		: std_logic :='0';
+	signal zc_rd		: std_logic :='0';
+	signal zc_sd_cs_n: std_logic;
+	signal zc_sd_di: std_logic;
+	signal zc_sd_clk: std_logic;
+	
+	signal trdos	: std_logic :='1';
 	
 	signal kb : std_logic_vector(4 downto 0) := "11111";
 	signal joy : std_logic_vector(4 downto 0) := "11111";
@@ -207,11 +219,16 @@ begin
 		"111" & kb(4 downto 0) when port_read = '1' and A(0) = '0' else -- #FE - keyboard 
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
+		zc_do_bus when port_read = '1' and A(7 downto 6) = "01" and A(4 downto 0) = "10111" and enable_zcontroller else -- Z-controller
 		"00" & timexcfg_reg when enable_timex = true and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
 		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
 	divmmc_enable <= '1' when enable_divmmc else '0';
+	
+	-- z-controller 
+	zc_wr <= '1' when (enable_zcontroller and N_IORQ = '0' and N_WR = '0' and A(7 downto 6) = "01" and A(4 downto 0) = "10111") else '0';
+	zc_rd <= '1' when (enable_zcontroller and N_IORQ = '0' and N_RD = '0' and A(7 downto 6) = "01" and A(4 downto 0) = "10111") else '0';
 	
 	-- clocks
 	process (CLK28)
@@ -239,6 +256,11 @@ begin
 			sound_out <= '0';
 			timexcfg_reg <= (others => '0');
 			is_port_ff <= '0';
+			if (enable_zcontroller) then 
+				trdos <= '1'; -- 1 - boot into service rom, 0 - boot into 128 menu
+			else 
+				trdos <= '0';
+			end if;
 		elsif clk_14'event and clk_14 = '1' then 
 			--if clk_7 = '1' then
 				if port_write = '1' then
@@ -278,12 +300,23 @@ begin
 					
 				end if;
 				
+				-- trdos flag
+				if enable_zcontroller and N_M1 = '0' and N_MREQ = '0' and A(15 downto 8) = X"3D" and port_7ffd(4) = '1' then 
+					trdos <= '1';
+				elsif enable_zcontroller and N_M1 = '0' and N_MREQ = '0' and A(15 downto 14) /= "00" then 
+					trdos <= '0'; 
+				end if;
+				
 			--end if;
 		end if;
 	end process;	
 
 	-- memory arbiter
-	U0: entity work.memory 
+	U1: entity work.memory 
+	generic map (
+		enable_divmmc => enable_divmmc,
+		enable_zcontroller => enable_zcontroller
+	)
 	port map ( 
 		CLK28 => CLK28,
 		CLK14 => CLK_14,
@@ -327,6 +360,9 @@ begin
 		VBUS_MODE_O => vbus_mode, -- video bus mode: 0 - ram, 1 - vram
 		VID_RD_O => vid_rd, -- read bitmap or attribute from video memory
 		
+		-- TRDOS 
+		TRDOS => trdos,
+		
 		-- rom
 		ROM_BANK => port_7ffd(4),
 		ROM_A => ROM_A,
@@ -334,7 +370,7 @@ begin
 	);
 	
 	-- divmmc interface
-	U1: entity work.divmmc
+	U2: entity work.divmmc
 	port map (
 		I_CLK		=> CLK28,
 		I_CS		=> divmmc_enable,
@@ -357,14 +393,35 @@ begin
 		O_SRAM_HIADDR	 => divmmc_sram_hiaddr,
 		
 		O_CS_N		=> divmmc_sd_cs_n,
-		O_SCLK		=> SD_CLK,
-		O_MOSI		=> SD_DI,
+		O_SCLK		=> divmmc_sd_clk,
+		O_MOSI		=> divmmc_sd_di,
 		I_MISO		=> SD_DO);
 		
-	N_SD_CS <= divmmc_sd_cs_n;
+	-- Z-Controller
+	U3: entity work.zcontroller 
+	port map(
+		RESET => not(N_RESET),
+		CLK => clk_7,
+		A => A(5),
+		DI => D,
+		DO => zc_do_bus,
+		RD => zc_rd,
+		WR => zc_wr,
+		SDDET => '0',
+		SDPROT => '0',
+		CS_n => zc_sd_cs_n,
+		SCLK => zc_sd_clk,
+		MOSI => zc_sd_di,
+		MISO => SD_DO
+	);
+
+	-- share SD card between DivMMC / ZC
+	N_SD_CS <= divmmc_sd_cs_n when enable_divmmc else zc_sd_cs_n when enable_zcontroller else '1';
+	SD_CLK <= divmmc_sd_clk when enable_divmmc else zc_sd_clk when enable_zcontroller else '1';
+	SD_DI <= divmmc_sd_di when enable_divmmc else zc_sd_di when enable_zcontroller else '1';
 	
 	-- keyboard
-	U2: entity work.cpld_kbd 
+	U4: entity work.cpld_kbd 
 	port map (
 		CLK => CLK28,
 		A => A(15 downto 8),
@@ -381,7 +438,7 @@ begin
 	);
 	
 	-- video module
-	U3: entity work.video 
+	U5: entity work.video 
 	port map (
 		CLK => CLK_14,
 		CLK28 => CLK28,
@@ -405,7 +462,7 @@ begin
 	);
 	
 	-- scandoubler
-	U4: entity work.vga_pal 
+	U6: entity work.vga_pal 
 	port map (
 		RGBI_IN => rgb & i,
       HSYNC_IN => hsync,
@@ -422,6 +479,7 @@ begin
 		D => VD
 	);	
 	
+	-- Share VGA connector between RGB / VGA modes
 	VGA_R <= r_vga when enable_vga else rgb(2) & i;
 	VGA_G <= g_vga when enable_vga else rgb(1) & i;
 	VGA_B <= b_vga when enable_vga else rgb(0) & i;

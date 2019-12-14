@@ -4,6 +4,10 @@ use IEEE.std_logic_arith.conv_integer;
 use IEEE.numeric_std.all;
 
 entity memory is
+generic (
+		enable_divmmc 	    : boolean := true;
+		enable_zcontroller : boolean := false
+);
 port (
 	CLK28 		: in std_logic;
 	CLK14	   	: in std_logic;
@@ -33,6 +37,8 @@ port (
 	DIVMMC_A 	  : in std_logic_vector(5 downto 0);
 	IS_DIVMMC_RAM : in std_logic;
 	IS_DIVMMC_ROM : in std_logic;
+	
+	TRDOS 		: in std_logic;
 	
 	VA				: in std_logic_vector(13 downto 0);
 	VID_PAGE 	: in std_logic := '0';
@@ -75,11 +81,14 @@ begin
 	is_rom <= '1' when N_MREQ = '0' and ((A(15 downto 14)  = "00" and IS_DIVMMC_ROM = '0' and IS_DIVMMC_RAM = '0') or IS_DIVMMC_ROM = '1') else '0';
 	is_ram <= '1' when N_MREQ = '0' and ((A(15 downto 14) /= "00" and IS_DIVMMC_ROM = '0' and IS_DIVMMC_RAM = '0') or IS_DIVMMC_RAM = '1') else '0';
 	
-	-- 00 - bank 0, ESXDOS 0.8.7
-	-- 01 - bank 1, empty
+	-- 00 - bank 0, ESXDOS 0.8.7 or GLUK
+	-- 01 - bank 1, empty or TRDOS
 	-- 10 - bank 2, Basic-128
 	-- 11 - bank 3, Basic-48
-	rom_page <= "00" when IS_DIVMMC_ROM = '1' else '1' & ROM_BANK;
+	rom_page <= "00" when enable_divmmc and IS_DIVMMC_ROM = '1' else 
+		(not(TRDOS)) & ROM_BANK when enable_zcontroller else
+		'1' & ROM_BANK;
+		
 	ROM_A(14) <= rom_page(0);
 	ROM_A(15) <= rom_page(1);	
 	N_ROMCS <= '0' when is_rom = '1' and N_RD = '0' else '1';

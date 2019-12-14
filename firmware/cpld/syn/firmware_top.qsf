@@ -219,6 +219,8 @@ set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL OFF
 set_global_assignment -name OPTIMIZE_POWER_DURING_SYNTHESIS OFF
 set_global_assignment -name PARALLEL_SYNTHESIS OFF
 set_global_assignment -name SYNTH_MESSAGE_LEVEL HIGH
+
+set_global_assignment -name VHDL_FILE ../rtl/sd/zcontroller.vhd
 set_global_assignment -name VHDL_FILE ../rtl/video/vga_pal.vhd
 set_global_assignment -name VHDL_FILE ../rtl/video/video.vhd
 set_global_assignment -name VHDL_FILE ../rtl/avr/spi_slave.vhd
