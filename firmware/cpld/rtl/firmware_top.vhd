@@ -220,7 +220,7 @@ begin
 		"000" & joy when port_read = '1' and A(7 downto 0) = X"1F" else -- #1F - kempston joy
 		divmmc_do when divmmc_wr = '1' else 									 -- divMMC
 		zc_do_bus when port_read = '1' and A(7 downto 6) = "01" and A(4 downto 0) = "10111" and enable_zcontroller else -- Z-controller
-		"00" & timexcfg_reg when enable_timex = true and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
+		"00" & timexcfg_reg when enable_timex and port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '1' else -- #FF (timex config)
 		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
@@ -474,10 +474,12 @@ begin
 		B_VGA => b_vga,
 		HSYNC_VGA => hsync_vga,
 		VSYNC_VGA => vsync_vga,
-		A => VA,
+		A => VA(9 downto 0),
 		WE => N_VWE,
 		D => VD
 	);	
+	
+	VA(14 downto 10) <= (others => '0');
 	
 	-- Share VGA connector between RGB / VGA modes
 	VGA_R <= r_vga when enable_vga else rgb(2) & i;
