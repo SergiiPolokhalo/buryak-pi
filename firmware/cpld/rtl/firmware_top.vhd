@@ -159,12 +159,6 @@ architecture rtl of firmware_top is
 	signal reset : std_logic;
 	signal is_divmmc_bank : std_logic := '1';
 	
-	signal r_vga: std_logic_vector(1 downto 0);
-	signal g_vga: std_logic_vector(1 downto 0);
-	signal b_vga: std_logic_vector(1 downto 0);
-	signal hsync_vga : std_logic;
-	signal vsync_vga : std_logic;
-
 begin
 
 	divmmc_rom <= '1' when (divmmc_disable_zxrom = '1' and divmmc_eeprom_cs_n = '0') else '0';
@@ -256,7 +250,7 @@ begin
 				trdos <= '0';
 			end if;
 		elsif clk_14'event and clk_14 = '1' then 
-			--if clk_7 = '1' then
+			if clk_7 = '1' then
 				if port_write = '1' then
 
 					 -- port #7FFD  
@@ -295,7 +289,7 @@ begin
 					trdos <= '0';
 				end if;
 				
-			--end if;
+			end if;
 		end if;
 	end process;	
 
