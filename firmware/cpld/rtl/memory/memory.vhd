@@ -4,10 +4,6 @@ use IEEE.std_logic_arith.conv_integer;
 use IEEE.numeric_std.all;
 
 entity memory is
-generic (
-		enable_divmmc 	    : boolean := true;
-		enable_zcontroller : boolean := false
-);
 port (
 	CLK28 		: in std_logic;
 	CLK14	   	: in std_logic;
@@ -34,10 +30,12 @@ port (
 	RAM_BANK		: in std_logic_vector(2 downto 0);
 	RAM_EXT 		: in std_logic_vector(2 downto 0);
 	
+	DIVMMC_EN 	  : in std_logic;
 	DIVMMC_A 	  : in std_logic_vector(5 downto 0);
 	IS_DIVMMC_RAM : in std_logic;
 	IS_DIVMMC_ROM : in std_logic;
 	
+	ZCONTROLLER_EN : in std_logic;
 	TRDOS 		: in std_logic;
 	
 	VA				: in std_logic_vector(13 downto 0);
@@ -85,8 +83,8 @@ begin
 	-- 01 - bank 1, empty or TRDOS
 	-- 10 - bank 2, Basic-128
 	-- 11 - bank 3, Basic-48
-	rom_page <= "00" when enable_divmmc and IS_DIVMMC_ROM = '1' else 
-		(not(TRDOS)) & ROM_BANK when enable_zcontroller else
+	rom_page <= "00" when DIVMMC_EN = '1' and IS_DIVMMC_ROM = '1' else 
+		(not(TRDOS)) & ROM_BANK when ZCONTROLLER_EN = '1' else
 		'1' & ROM_BANK;
 		
 	ROM_A(14) <= rom_page(0);

@@ -17,7 +17,7 @@ entity firmware_top is
 																      -- 3 - pentagon-128
 		enable_timex	    : boolean := false;
 		enable_divmmc 	    : boolean := true;
-		enable_zcontroller : boolean := false;
+		enable_zcontroller : boolean := true;
 		enable_vga 		    : boolean := true
 	);
 	port(
@@ -146,6 +146,7 @@ architecture rtl of firmware_top is
 	signal divmmc_sd_di: std_logic;
 	signal divmmc_sd_clk: std_logic;
 	
+	signal zc_enable : std_logic := '0';
 	signal zc_do_bus	: std_logic_vector(7 downto 0);
 	signal zc_wr 		: std_logic :='0';
 	signal zc_rd		: std_logic :='0';
@@ -160,6 +161,7 @@ architecture rtl of firmware_top is
 	signal nmi : std_logic;
 	signal reset : std_logic;
 	signal turbo : std_logic;
+	signal bank : std_logic_vector(2 downto 0);
 	
 	signal r_vga: std_logic_vector(1 downto 0);
 	signal g_vga: std_logic_vector(1 downto 0);
@@ -224,7 +226,8 @@ begin
 		attr_r when port_read = '1' and A(7 downto 0) = x"FF" and is_port_ff = '0' else -- #FF - attributes (timex port never set)
 		"ZZZZZZZZ";
 
-	divmmc_enable <= '1' when enable_divmmc else '0';
+	divmmc_enable <= '1' when enable_divmmc and bank = "000" else '0';
+	zc_enable <= '1' when enable_zcontroller and bank /= "000" else '0';
 	
 	-- z-controller 
 	zc_wr <= '1' when (enable_zcontroller and N_IORQ = '0' and N_WR = '0' and A(7 downto 6) = "01" and A(4 downto 0) = "10111") else '0';
@@ -313,10 +316,6 @@ begin
 
 	-- memory arbiter
 	U1: entity work.memory 
-	generic map (
-		enable_divmmc => enable_divmmc,
-		enable_zcontroller => enable_zcontroller
-	)
 	port map ( 
 		CLK28 => CLK28,
 		CLK14 => CLK_14,
@@ -348,6 +347,7 @@ begin
 		RAM_EXT => ram_ext,
 
 		-- divmmc
+		DIVMMC_EN => divmmc_enable,
 		DIVMMC_A => divmmc_sram_hiaddr,
 		IS_DIVMMC_RAM => divmmc_ram,
 		IS_DIVMMC_ROM => divmmc_rom,
@@ -360,7 +360,8 @@ begin
 		VBUS_MODE_O => vbus_mode, -- video bus mode: 0 - ram, 1 - vram
 		VID_RD_O => vid_rd, -- read bitmap or attribute from video memory
 		
-		-- TRDOS 
+		-- ZC / TRDOS 
+		ZCONTROLLER_EN => zc_enable,
 		TRDOS => trdos,
 		
 		-- rom
@@ -401,7 +402,7 @@ begin
 	U3: entity work.zcontroller 
 	port map(
 		RESET => not(N_RESET),
-		CLK => clk_7,
+		CLK => CLK28,
 		A => A(5),
 		DI => D,
 		DO => zc_do_bus,
@@ -416,9 +417,9 @@ begin
 	);
 
 	-- share SD card between DivMMC / ZC
-	N_SD_CS <= divmmc_sd_cs_n when enable_divmmc else zc_sd_cs_n when enable_zcontroller else '1';
-	SD_CLK <= divmmc_sd_clk when enable_divmmc else zc_sd_clk when enable_zcontroller else '1';
-	SD_DI <= divmmc_sd_di when enable_divmmc else zc_sd_di when enable_zcontroller else '1';
+	N_SD_CS <= divmmc_sd_cs_n when enable_divmmc and bank="000" else zc_sd_cs_n when enable_zcontroller else '1';
+	SD_CLK <= divmmc_sd_clk when enable_divmmc and bank="000" else zc_sd_clk when enable_zcontroller else '1';
+	SD_DI <= divmmc_sd_di when enable_divmmc and bank="000" else zc_sd_di when enable_zcontroller else '1';
 	
 	-- keyboard
 	U4: entity work.cpld_kbd 
@@ -434,7 +435,8 @@ begin
 		O_RESET => reset,
 		O_TURBO => turbo,
 		O_MAGICK => nmi,
-		O_JOY => joy
+		O_JOY => joy,
+		O_BANK => bank
 	);
 	
 	-- video module

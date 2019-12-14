@@ -373,12 +373,15 @@ void fill_kbd_matrix(int sc)
       }
     break;
 
-    // PrintScreen -> Special
+    // PrintScreen, F1 -> Special
     case PS2_PSCR1: 
+    case PS2_F1:
       if (is_up) {
         is_special = !is_special;        
         eeprom_store_value(EEPROM_SPECIAL_ADDRESS, is_special);
-//        matrix[ZX_K_SPECIAL] = is_special;
+        matrix[ZX_ROMBANK0] = is_special;
+        matrix[ZX_ROMBANK1] = 0;
+        matrix[ZX_ROMBANK2] = 0;
       }
     break;
 
@@ -460,7 +463,7 @@ void spi_send(uint8_t addr, uint8_t data)
 // transmit keyboard matrix from AVR to CPLD side via SPI
 void transmit_keyboard_matrix()
 {
-    uint8_t bytes = 6;
+    uint8_t bytes = 7;
     for (uint8_t i=0; i<bytes; i++) {
       uint8_t data = get_matrix_byte(i);
       spi_send(i+1, data);

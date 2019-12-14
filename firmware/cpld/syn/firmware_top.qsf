@@ -49,7 +49,7 @@ set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulati
 
 set_global_assignment -name FMAX_REQUIREMENT "28 MHz"
 set_global_assignment -name FMAX_REQUIREMENT "28 MHz" -section_id CLK28
-set_global_assignment -name MAX7000_OPTIMIZATION_TECHNIQUE AREA
+set_global_assignment -name MAX7000_OPTIMIZATION_TECHNIQUE SPEED
 set_global_assignment -name AUTO_LCELL_INSERTION ON
 set_global_assignment -name OPTIMIZE_HOLD_TIMING OFF
 set_global_assignment -name AUTO_GLOBAL_CLOCK_MAX ON
@@ -216,7 +216,7 @@ set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
 set_global_assignment -name TIMEQUEST_REPORT_SCRIPT_INCLUDE_DEFAULT_ANALYSIS OFF
 set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL OFF
 
-set_global_assignment -name OPTIMIZE_POWER_DURING_SYNTHESIS OFF
+set_global_assignment -name OPTIMIZE_POWER_DURING_SYNTHESIS "NORMAL COMPILATION"
 set_global_assignment -name PARALLEL_SYNTHESIS OFF
 set_global_assignment -name SYNTH_MESSAGE_LEVEL HIGH
 

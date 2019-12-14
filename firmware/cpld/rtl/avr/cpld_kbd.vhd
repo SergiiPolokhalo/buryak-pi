@@ -18,6 +18,7 @@ port (
 	O_RESET		: out std_logic;
 	O_TURBO		: out std_logic;
 	O_MAGICK	: out std_logic;
+	O_BANK	: out std_logic_vector(2 downto 0);
 	
 	O_JOY : out std_logic_vector(4 downto 0)
 );
@@ -38,6 +39,7 @@ architecture RTL of cpld_kbd is
 	 signal spi_do : std_logic_vector(15 downto 0);
 	 
 	 signal joy : std_logic_vector(4 downto 0);
+	 signal bank : std_logic_vector(2 downto 0) := "000";
 
 begin
 
@@ -82,6 +84,8 @@ begin
 								  turbo <= spi_do(1); 
 								  magick <= spi_do(2); 
 								  joy <= spi_do(7 downto 3);
+				when X"07" => 
+								  bank(2 downto 0) <= spi_do(2 downto 0);
 				when others => null;
 			end case;
 		end if;
@@ -95,6 +99,15 @@ begin
 		O_MAGICK <= not(magick);
 		O_TURBO <= turbo;
 		O_JOY <= not(joy);
+	end if;
+end process;
+
+process (reset, bank)
+begin 
+	if (reset = '1') then 
+		O_BANK <= "000";
+	else 
+		O_BANK <= "00" & bank(0);
 	end if;
 end process;
 

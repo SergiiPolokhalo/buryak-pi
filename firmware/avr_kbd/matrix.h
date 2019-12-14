@@ -26,7 +26,7 @@
 // Key position in output array
 
 #define ZX_MATRIX_SIZE 40 // 40 keys only
-#define ZX_MATRIX_FULL_SIZE 48 // 40 keys + 3 special signals + 5 joy buttons
+#define ZX_MATRIX_FULL_SIZE 56 // 40 keys + 3 special signals + 5 joy buttons + additional ROM bank, etc
 
 #define ZX_K_CS  0
 #define ZX_K_A   1
@@ -81,6 +81,11 @@
 #define ZX_JOY_LEFT 46
 #define ZX_JOY_RIGHT 47
 
+// ROM bank signals
+#define ZX_ROMBANK0 48
+#define ZX_ROMBANK1 49
+#define ZX_ROMBANK2 50
+
 // kbd commands
 #define CMD_KBD_BYTE1 0x01
 #define CMD_KBD_BYTE2 0x02
@@ -88,6 +93,7 @@
 #define CMD_KBD_BYTE4 0x04
 #define CMD_KBD_BYTE5 0x05
 #define CMD_KBD_BYTE6 0x06
+#define CMD_KBD_BYTE7 0x07
 
 #define CMD_NONE 0xFF
 
