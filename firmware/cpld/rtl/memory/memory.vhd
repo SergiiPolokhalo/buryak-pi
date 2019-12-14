@@ -58,7 +58,6 @@ architecture RTL of memory is
 	signal ram_page : std_logic_vector(6 downto 0) := "0000000";
 
 	signal vbus_req	: std_logic := '1';
-	signal vbus_ack	: std_logic := '1';
 	signal vbus_mode	: std_logic := '1';	
 	signal vbus_rdy	: std_logic := '1';
 	signal vid_rd 		: std_logic := '0';
@@ -166,7 +165,6 @@ begin
 	
 	vbus_mode <= vbus_mode1 when TURBO = '0' else vbus_mode2;
 	vid_rd <= vid_rd1 when TURBO = '0' else vid_rd2;
-	vbus_ack <= vbus_ack1 when TURBO = '0' else vbus_ack2;
 	
 end RTL;
 
