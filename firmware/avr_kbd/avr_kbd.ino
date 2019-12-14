@@ -38,7 +38,7 @@
 #define ROM_A18 9
 
 #define EEPROM_TURBO_ADDRESS 0x00
-#define EEPROM_SPECIAL_ADDRESS 0x01
+#define EEPROM_ROMBANK_ADDRESS 0x01
 
 #define EEPROM_VALUE_TRUE 10
 #define EEPROM_VALUE_FALSE 20
@@ -50,7 +50,7 @@ bool matrix[ZX_MATRIX_FULL_SIZE]; // matrix of pressed keys + special keys to be
 bool blink_state = false;
 
 bool is_turbo = false;
-bool is_special = false;
+byte rom_bank = 0x0;
 
 unsigned long t = 0;  // current time
 unsigned long tl = 0; // blink poll time
@@ -368,17 +368,36 @@ void fill_kbd_matrix(int sc)
     case PS2_SCROLL: 
       if (is_up) {
         is_turbo = !is_turbo;        
-        eeprom_store_value(EEPROM_TURBO_ADDRESS, is_turbo);
+        eeprom_store_bool(EEPROM_TURBO_ADDRESS, is_turbo);
         matrix[ZX_K_TURBO] = is_turbo;
       }
     break;
 
-    // PrintScreen -> Special
+    // PrintScreen, F1 -Rom bank (bit 0)
     case PS2_PSCR1: 
+    case PS2_F1:
       if (is_up) {
-        is_special = !is_special;        
-        eeprom_store_value(EEPROM_SPECIAL_ADDRESS, is_special);
-//        matrix[ZX_K_SPECIAL] = is_special;
+        bitWrite(rom_bank, 0, !bitRead(rom_bank, 0));
+        eeprom_store_byte(EEPROM_ROMBANK_ADDRESS, rom_bank);
+        matrix[ZX_K_ROMBANK0] = bitRead(rom_bank, 0);
+      }
+    break;
+
+    // F3 -> Rom bank (bit 1)
+    case PS2_F3:
+      if (is_up) {
+        bitWrite(rom_bank, 1, !bitRead(rom_bank, 1));
+        eeprom_store_byte(EEPROM_ROMBANK_ADDRESS, rom_bank);
+        matrix[ZX_K_ROMBANK1] = bitRead(rom_bank, 1);
+      }
+    break;
+
+    // F4 -> Rom bank (bit 2)
+    case PS2_F4:
+      if (is_up) {
+        bitWrite(rom_bank, 2, !bitRead(rom_bank, 2));
+        eeprom_store_byte(EEPROM_ROMBANK_ADDRESS, rom_bank);
+        matrix[ZX_K_ROMBANK2] = bitRead(rom_bank, 2);
       }
     break;
 
@@ -460,7 +479,7 @@ void spi_send(uint8_t addr, uint8_t data)
 // transmit keyboard matrix from AVR to CPLD side via SPI
 void transmit_keyboard_matrix()
 {
-    uint8_t bytes = 6;
+    uint8_t bytes = 7;
     for (uint8_t i=0; i<bytes; i++) {
       uint8_t data = get_matrix_byte(i);
       spi_send(i+1, data);
@@ -518,7 +537,7 @@ void clear_matrix(int clear_size)
   }
 }
 
-bool eeprom_restore_value(int addr, bool default_value)
+bool eeprom_restore_bool(int addr, bool default_value)
 {
   byte val;  
   val = EEPROM.read(addr);
@@ -530,24 +549,40 @@ bool eeprom_restore_value(int addr, bool default_value)
   }
 }
 
-void eeprom_store_value(int addr, bool value)
+byte eeprom_restore_byte(int addr, byte default_value)
+{
+  return EEPROM.read(addr);
+}
+
+void eeprom_store_bool(int addr, bool value)
 {
   byte val = (value ? EEPROM_VALUE_TRUE : EEPROM_VALUE_FALSE);
   EEPROM.update(addr, val);
 }
 
+void eeprom_store_byte(int addr, byte value)
+{
+  EEPROM.update(addr, value);
+}
+
 void eeprom_restore_values()
 {
-  is_turbo = eeprom_restore_value(EEPROM_TURBO_ADDRESS, is_turbo);
-  is_special = eeprom_restore_value(EEPROM_SPECIAL_ADDRESS, is_special);
+  is_turbo = eeprom_restore_bool(EEPROM_TURBO_ADDRESS, is_turbo);
+  rom_bank = eeprom_restore_byte(EEPROM_ROMBANK_ADDRESS, 0);
+  if (rom_bank > 7) {
+    rom_bank = 0;
+    eeprom_store_byte(EEPROM_ROMBANK_ADDRESS, rom_bank);
+  }
   matrix[ZX_K_TURBO] = is_turbo;
-//  matrix[ZX_K_SPECIAL] = is_special;
+  matrix[ZX_K_ROMBANK0] = bitRead(rom_bank, 0);
+  matrix[ZX_K_ROMBANK1] = bitRead(rom_bank, 1);
+  matrix[ZX_K_ROMBANK2] = bitRead(rom_bank, 2);
 }
 
 void eeprom_store_values()
 {
-  eeprom_store_value(EEPROM_TURBO_ADDRESS, is_turbo);
-  eeprom_store_value(EEPROM_SPECIAL_ADDRESS, is_special);
+  eeprom_store_bool(EEPROM_TURBO_ADDRESS, is_turbo);
+  eeprom_store_byte(EEPROM_ROMBANK_ADDRESS, rom_bank);
 }
 
 // initial setup
@@ -598,7 +633,7 @@ void setup()
   eeprom_restore_values();
 
   digitalWrite(LED_TURBO, is_turbo ? HIGH : LOW);
-  digitalWrite(LED_SPECIAL, is_special ? HIGH: LOW);
+  digitalWrite(LED_SPECIAL, (rom_bank != 0) ? HIGH: LOW);
 
 Serial.println(F("ZX PS/2 Keyboard controller v1.0"));
 
@@ -640,7 +675,9 @@ void loop()
 #endif
     fill_kbd_matrix(c);
     
-    digitalWrite(ROM_A16, is_special);
+    digitalWrite(ROM_A16, bitRead(rom_bank, 0));
+    digitalWrite(ROM_A17, bitRead(rom_bank, 1));
+    digitalWrite(ROM_A18, bitRead(rom_bank, 2));
   }
 
   // read joystick
@@ -660,7 +697,7 @@ void loop()
     blink_state = false;
 
     digitalWrite(LED_TURBO, is_turbo ? HIGH : LOW);
-    digitalWrite(LED_SPECIAL, is_special ? HIGH: LOW);
+    digitalWrite(LED_SPECIAL, (rom_bank != 0) ? HIGH: LOW);
     
   }
 }

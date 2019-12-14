@@ -49,7 +49,7 @@ set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulati
 
 set_global_assignment -name FMAX_REQUIREMENT "28 MHz"
 set_global_assignment -name FMAX_REQUIREMENT "28 MHz" -section_id CLK28
-set_global_assignment -name MAX7000_OPTIMIZATION_TECHNIQUE AREA
+set_global_assignment -name MAX7000_OPTIMIZATION_TECHNIQUE BALANCED
 set_global_assignment -name AUTO_LCELL_INSERTION ON
 set_global_assignment -name OPTIMIZE_HOLD_TIMING OFF
 set_global_assignment -name AUTO_GLOBAL_CLOCK_MAX ON
@@ -84,9 +84,9 @@ set_global_assignment -name SYNTH_TIMING_DRIVEN_SYNTHESIS OFF
 set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name FITTER_EFFORT "STANDARD FIT"
 set_global_assignment -name ALM_REGISTER_PACKING_EFFORT MEDIUM
-set_global_assignment -name ECO_OPTIMIZE_TIMING OFF
-set_global_assignment -name ECO_REGENERATE_REPORT OFF
-set_global_assignment -name SLOW_SLEW_RATE ON
+set_global_assignment -name ECO_OPTIMIZE_TIMING ON
+set_global_assignment -name ECO_REGENERATE_REPORT ON
+set_global_assignment -name SLOW_SLEW_RATE OFF
 set_global_assignment -name FORCE_FITTER_TO_AVOID_PERIPHERY_PLACEMENT_WARNINGS OFF
 
 set_location_assignment PIN_53 -to AY_BC1
@@ -216,15 +216,18 @@ set_global_assignment -name RESERVE_ALL_UNUSED_PINS "AS INPUT TRI-STATED"
 set_global_assignment -name TIMEQUEST_REPORT_SCRIPT_INCLUDE_DEFAULT_ANALYSIS OFF
 set_global_assignment -name TIMEQUEST_DO_CCPP_REMOVAL OFF
 
-set_global_assignment -name OPTIMIZE_POWER_DURING_SYNTHESIS OFF
+set_global_assignment -name OPTIMIZE_POWER_DURING_SYNTHESIS "NORMAL COMPILATION"
 set_global_assignment -name PARALLEL_SYNTHESIS OFF
 set_global_assignment -name SYNTH_MESSAGE_LEVEL HIGH
-set_global_assignment -name VERILOG_FILE zxunouart.v
-set_global_assignment -name VERILOG_FILE zxunoregs.v
-set_global_assignment -name VHDL_FILE vga_pal.vhd
-set_global_assignment -name VHDL_FILE scan_converter.vhd
-set_global_assignment -name VHDL_FILE video.vhd
-set_global_assignment -name VHDL_FILE spi_slave.vhd
-set_global_assignment -name VHDL_FILE cpld_kbd.vhd
-set_global_assignment -name VHDL_FILE divmmc.vhd
-set_global_assignment -name VHDL_FILE firmware_top.vhd
+
+set_global_assignment -name VHDL_FILE ../rtl/sd/zcontroller.vhd
+set_global_assignment -name VHDL_FILE ../rtl/video/vga_pal.vhd
+set_global_assignment -name VHDL_FILE ../rtl/video/video.vhd
+set_global_assignment -name VHDL_FILE ../rtl/avr/spi_slave.vhd
+set_global_assignment -name VHDL_FILE ../rtl/avr/cpld_kbd.vhd
+set_global_assignment -name VHDL_FILE ../rtl/sd/divmmc.vhd
+set_global_assignment -name VHDL_FILE ../rtl/firmware_top.vhd
+set_global_assignment -name VHDL_FILE ../rtl/memory/memory.vhd
+set_global_assignment -name ALLOW_POWER_UP_DONT_CARE ON
+set_global_assignment -name AUTO_OPEN_DRAIN_PINS ON
+set_global_assignment -name AUTO_PARALLEL_EXPANDERS ON
