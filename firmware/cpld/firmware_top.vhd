@@ -35,7 +35,7 @@ entity firmware_top is
 		A					: in std_logic_vector(15 downto 0);
 		D 					: inout std_logic_vector(7 downto 0) := "ZZZZZZZZ";
 		N_NMI 			: out std_logic := 'Z';
---		N_WAIT 			: out std_logic := 'Z';
+		N_WAIT 			: out std_logic := 'Z';
 		
 		-- RAM 
 		MA 				: out std_logic_vector(20 downto 0);
@@ -72,7 +72,7 @@ entity firmware_top is
 		SD_DI 			: out std_logic;
 		SD_DO 			: in std_logic;
 		N_SD_CS 			: out std_logic := '1';
---		SD_DETECT		: in std_logic;
+		SD_DETECT		: in std_logic;
 		
 		-- Keyboard Atmega
 		KEY_SCK 			: in std_logic;
@@ -95,8 +95,7 @@ architecture rtl of firmware_top is
 	signal rgb 	 		: std_logic_vector(2 downto 0);
 	signal i 			: std_logic;
 	signal vid_a 		: std_logic_vector(13 downto 0);
-	signal hcnt 		: std_logic_vector(8 downto 0);
-	signal vcnt 		: std_logic_vector(8 downto 0);	
+	signal hcnt0 		: std_logic;
 	
 	signal timexcfg_reg : std_logic_vector(5 downto 0);
 	signal is_port_ff : std_logic := '0';	
@@ -185,13 +184,13 @@ begin
 	 end process;
 
 	-- CPU clock 
-	process( N_RESET, clk28, clk_14, clk_7, hcnt )
+	process( N_RESET, clk28, clk_14, clk_7, hcnt0 )
 	begin
 		if clk_14'event and clk_14 = '1' then
 			if (turbo = '1') then
 				clkcpu <= clk_7;
 			elsif clk_7 = '1' then
-				clkcpu <= hcnt(0);
+				clkcpu <= hcnt0;
 			end if;
 		end if;
 	end process;
@@ -289,7 +288,7 @@ begin
 		CLK28 => CLK28,
 		CLK14 => CLK_14,
 		CLK7  => CLK_7,
-		HCNT0 => hcnt(0),
+		HCNT0 => hcnt0,
 		TURBO => turbo,
 		
 		-- cpu signals
@@ -402,8 +401,7 @@ begin
 		VSYNC => vsync,
 		VBUS_MODE => vbus_mode,
 		VID_RD => vid_rd,
-		HCNT_O => hcnt,
-		VCNT_O => vcnt
+		HCNT0 => hcnt0
 	);
 	
 	-- scandoubler
@@ -412,8 +410,6 @@ begin
 		RGBI_IN => rgb & i,
       HSYNC_IN => hsync,
 		VSYNC_IN => vsync,
-		HCNT_IN => hcnt,
-		VCNT_IN => vcnt,
 		F28 => CLK28,
 		F14 => CLK_14,
 		R_VGA => r_vga,

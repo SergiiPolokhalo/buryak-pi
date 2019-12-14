@@ -29,8 +29,7 @@ entity video is
 		VBUS_MODE : in std_logic := '0';
 		VID_RD 	 : in std_logic := '0';
 
-		HCNT_O	: out std_logic_vector(8 downto 0);
-		VCNT_O	: out std_logic_vector(8 downto 0)
+		HCNT0		: out std_logic
 		);
 end entity;
 
@@ -271,8 +270,7 @@ begin
 	BLANK	<= blank_r;
 	paper <= '0' when hor_cnt(5) = '0' and ver_cnt(5) = '0' and ( ver_cnt(4) = '0' or ver_cnt(3) = '0' ) else '1';
 
-	HCNT_O <= std_logic_vector(hor_cnt(5 downto 0) & chr_col_cnt(2 downto 0));
-	VCNT_O <= std_logic_vector(ver_cnt(5 downto 0) & chr_row_cnt(2 downto 0));
+	HCNT0 <= chr_col_cnt(0);
 
 	INT <= int_sig;
 

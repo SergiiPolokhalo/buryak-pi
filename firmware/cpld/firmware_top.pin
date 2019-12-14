@@ -87,7 +87,7 @@ N_RESET                      : 23        : bidir  : 3.3-V LVTTL       :         
 VCCIO                        : 24        : power  :                   : 3.3V    :           :                
 N_RD                         : 25        : input  : 3.3-V LVTTL       :         :           : Y              
 N_WR                         : 26        : input  : 3.3-V LVTTL       :         :           : Y              
-RESERVED_INPUT               : 27        :        :                   :         :           :                
+N_WAIT                       : 27        : output : 3.3-V LVTTL       :         :           : Y              
 N_IORQ                       : 28        : input  : 3.3-V LVTTL       :         :           : Y              
 N_MREQ                       : 29        : input  : 3.3-V LVTTL       :         :           : Y              
 N_NMI                        : 30        : output : 3.3-V LVTTL       :         :           : Y              
@@ -188,7 +188,7 @@ GND                          : 124       : gnd    :                   :         
 CLK28                        : 125       : input  : 3.3-V LVTTL       :         :           : Y              
 GND+                         : 126       :        :                   :         :           :                
 N_BTN_NMI                    : 127       : input  : 3.3-V LVTTL       :         :           : Y              
-GND+                         : 128       :        :                   :         :           :                
+SD_DETECT                    : 128       : input  : 3.3-V LVTTL       :         :           : Y              
 GND                          : 129       : gnd    :                   :         :           :                
 VCCINT                       : 130       : power  :                   : 3.3V    :           :                
 A[3]                         : 131       : input  : 3.3-V LVTTL       :         :           : Y              

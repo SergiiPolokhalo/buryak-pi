@@ -21,8 +21,6 @@ entity vga_pal is
 RGBI_IN        : in std_logic_vector(3 downto 0) := "1111"; -- цифровой R/G/B/I
 HSYNC_IN      : in std_logic := '1'; -- строчные синхроимпульсы
 VSYNC_IN 	: in std_logic := '1'; -- кадровые синхроимпульсы
-HCNT_IN		: in std_logic_vector(8 downto 0);
-VCNT_IN 		: in std_logic_vector(8 downto 0);
 F28			: in std_logic := '1';
 F14 			: in std_logic := '1';
 
