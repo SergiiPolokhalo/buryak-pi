@@ -82,9 +82,9 @@
 #define ZX_JOY_RIGHT 47
 
 // ROM bank signals
-#define ZX_ROMBANK0 48
-#define ZX_ROMBANK1 49
-#define ZX_ROMBANK2 50
+#define ZX_K_ROMBANK0 48
+#define ZX_K_ROMBANK1 49
+#define ZX_K_ROMBANK2 50
 
 // kbd commands
 #define CMD_KBD_BYTE1 0x01
