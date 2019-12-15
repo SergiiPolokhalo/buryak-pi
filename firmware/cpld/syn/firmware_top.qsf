@@ -231,3 +231,4 @@ set_global_assignment -name VHDL_FILE ../rtl/memory/memory.vhd
 set_global_assignment -name ALLOW_POWER_UP_DONT_CARE ON
 set_global_assignment -name AUTO_OPEN_DRAIN_PINS ON
 set_global_assignment -name AUTO_PARALLEL_EXPANDERS ON
+set_global_assignment -name SDC_FILE firmware_top.sdc

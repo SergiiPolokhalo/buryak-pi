@@ -76,11 +76,11 @@ begin
 	timex_pallette <= TIMEXCFG(5 downto 3);
 	
 	-- sync, counters
-	process( CLK, ENA7, chr_col_cnt, hor_cnt, chr_row_cnt, ver_cnt, TURBO, INTA)
+	process( CLK28, CLK, ENA7, chr_col_cnt, hor_cnt, chr_row_cnt, ver_cnt, TURBO, INTA)
 	begin
-		if CLK'event and CLK = '1' then
+		if CLK28'event and CLK28 = '1' then
 		
-			if ENA7 = '1' then
+			if CLK = '1' and ENA7 = '1' then
 			
 				if chr_col_cnt = 7 then
 				
@@ -149,9 +149,9 @@ begin
 	end process;
 
 	-- r/g/b/i
-	process( CLK, ENA7, paper_r, shift_r, attr_r, invert, blank_r, timex_hires, timex_pallette, BORDER )
+	process( CLK28, CLK, ENA7, paper_r, shift_r, attr_r, invert, blank_r, timex_hires, timex_pallette, BORDER )
 	begin
-		if CLK'event and CLK = '1' then
+		if CLK28'event and CLK28 = '1' then
 			if paper_r = '0' then -- paper
 				if (timex_hires = '1') then
 					-- timex hires RGB
@@ -167,7 +167,7 @@ begin
 						VIDEO_I <= '0';
 					end if;
 				
-				elsif (timex_hires = '0' and ENA7 = '1') then 
+				else --elsif (timex_hires = '0' and ENA7 = '1') then 
 					-- standard RGB
 					if( shift_r(7) xor ( attr_r(7) and invert(4) ) ) = '1' then -- fg pixel
 						VIDEO_B <= attr_r(0);
@@ -193,7 +193,7 @@ begin
 					VIDEO_R <= not timex_pallette(1);
 					VIDEO_G <= not timex_pallette(0);
 					VIDEO_I <= '0';
-				elsif ENA7 = '1' and timex_hires = '0' then -- std border
+				else --elsif ENA7 = '1' and timex_hires = '0' then -- std border
 					-- standard RGB
 					VIDEO_B <= BORDER(0);
 					VIDEO_R <= BORDER(1);
@@ -205,36 +205,39 @@ begin
 	end process;
 
 	-- paper, blank, bitmap shift registers
-	process( CLK, ENA7, chr_col_cnt, hor_cnt, ver_cnt, shift_hr_r, attr, bitmap, paper, shift_r )
+	process( CLK28, CLK, ENA7, chr_col_cnt, hor_cnt, ver_cnt, shift_hr_r, attr, bitmap, paper, shift_r )
 	begin
-		if CLK'event and CLK = '1' then
+		if CLK28'event and CLK28 = '1' then
 
-			-- timex hires shift register
-			if chr_col_cnt = 7 and ENA7 = '1' then 
-				shift_hr_r <= bitmap & attr;
-			else 
-				shift_hr_r(15 downto 1) <= shift_hr_r(14 downto 0);
-				shift_hr_r(0) <= '0';
-			end if;
-
-			-- standard shift register 
-			if ENA7 = '1' then
-				if chr_col_cnt = 7 then
-					attr_r <= attr;
-					shift_r <= bitmap;
-
-					if ((hor_cnt(5 downto 0) > 38 and hor_cnt(5 downto 0) < 48) or ver_cnt(5 downto 1) = 15) then
-						blank_r <= '0';
-					else 
-						blank_r <= '1';
-					end if;
-					
-					paper_r <= paper;
-				else
-					shift_r(7 downto 1) <= shift_r(6 downto 0);
-					shift_r(0) <= '0';
+			if CLK = '1' then
+		
+				-- timex hires shift register
+				if chr_col_cnt = 7 and ENA7 = '1' then 
+					shift_hr_r <= bitmap & attr;
+				else 
+					shift_hr_r(15 downto 1) <= shift_hr_r(14 downto 0);
+					shift_hr_r(0) <= '0';
 				end if;
 
+				-- standard shift register 
+				if ENA7 = '1' then
+					if chr_col_cnt = 7 then
+						attr_r <= attr;
+						shift_r <= bitmap;
+
+						if ((hor_cnt(5 downto 0) > 38 and hor_cnt(5 downto 0) < 48) or ver_cnt(5 downto 1) = 15) then
+							blank_r <= '0';
+						else 
+							blank_r <= '1';
+						end if;
+						
+						paper_r <= paper;
+					else
+						shift_r(7 downto 1) <= shift_r(6 downto 0);
+						shift_r(0) <= '0';
+					end if;
+
+				end if;
 			end if;
 		end if;
 	end process;
