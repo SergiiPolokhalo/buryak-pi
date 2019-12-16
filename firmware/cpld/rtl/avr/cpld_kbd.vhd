@@ -83,7 +83,11 @@ begin
 				when X"06" => reset <= spi_do(0); 
 								  turbo <= spi_do(1); 
 								  magick <= spi_do(2); 
-								  joy <= spi_do(7 downto 3);
+								  joy(0) <= spi_do(7);
+								  joy(1) <= spi_do(6);
+								  joy(2) <= spi_do(5);
+								  joy(3) <= spi_do(4);
+								  joy(4) <= spi_do(3); 
 				when X"07" => bank <= spi_do(2 downto 0);
 				when others => null;
 			end case;
