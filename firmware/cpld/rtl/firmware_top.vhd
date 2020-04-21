@@ -15,7 +15,7 @@ entity firmware_top is
 																      -- 1 - pentagon-1024 via 5,6,7 bits of the #7FFD port (no 48k lock)
 																      -- 2 - profi-1024 via 0,1,2 bits of the #DFFD port
 																      -- 3 - pentagon-128
-		enable_timex	    : boolean := false;
+		enable_timex	    : boolean := true;
 		enable_port_ff 	 : boolean := true;
 		enable_divmmc 	    : boolean := true;
 		enable_zcontroller : boolean := false;
@@ -56,11 +56,11 @@ entity firmware_top is
 		ROM_A 			: out std_logic_vector(15 downto 14) := "00";
 		
 		-- VGA Video
-		VGA_VSYNC    		: out std_logic;
-		VGA_HSYNC 			: out std_logic;
-		VGA_R       		: out std_logic_vector(1 downto 0) := "00";
-		VGA_G       		: out std_logic_vector(1 downto 0) := "00";
-		VGA_B       		: out std_logic_vector(1 downto 0) := "00";
+		VGA_VSYNC    		: out std_logic := '1';
+		VGA_HSYNC 			: out std_logic := '1';
+		VGA_R       		: out std_logic_vector(1 downto 0) := "ZZ";
+		VGA_G       		: out std_logic_vector(1 downto 0) := "ZZ";
+		VGA_B       		: out std_logic_vector(1 downto 0) := "ZZ";
 
 		-- Interfaces 
 		BEEPER			: out std_logic := '1';
@@ -162,9 +162,9 @@ architecture rtl of firmware_top is
 	signal reset : std_logic;
 	signal turbo : std_logic;
 	
-	signal r_vga: std_logic_vector(1 downto 0);
-	signal g_vga: std_logic_vector(1 downto 0);
-	signal b_vga: std_logic_vector(1 downto 0);
+	signal vga_red: std_logic_vector(1 downto 0);
+	signal vga_green: std_logic_vector(1 downto 0);
+	signal vga_blue: std_logic_vector(1 downto 0);	
 	signal hsync_vga : std_logic;
 	signal vsync_vga : std_logic;
 
@@ -263,7 +263,7 @@ begin
 				trdos <= '0';
 			end if;
 		elsif clk_14'event and clk_14 = '1' then 
-			--if clk_7 = '1' then
+			if TURBO = '1' or clk_7 = '1' then
 				if port_write = '1' then
 
 					 -- port #7FFD  
@@ -308,7 +308,7 @@ begin
 					trdos <= '0'; 
 				end if;
 				
-			--end if;
+			end if;
 		end if;
 	end process;	
 
@@ -371,6 +371,7 @@ begin
 	);
 	
 	-- divmmc interface
+	G_DIVMMC: if enable_divmmc generate
 	U2: entity work.divmmc
 	port map (
 		I_CLK		=> CLK28,
@@ -396,9 +397,12 @@ begin
 		O_CS_N		=> divmmc_sd_cs_n,
 		O_SCLK		=> divmmc_sd_clk,
 		O_MOSI		=> divmmc_sd_di,
-		I_MISO		=> SD_DO);
+		I_MISO		=> SD_DO
+	);
+	end generate G_DIVMMC;
 		
-	-- Z-Controller
+	-- Z-Controller	
+	G_ZCCONTROLLER: if enable_zcontroller generate
 	U3: entity work.zcontroller 
 	port map(
 		RESET => not(N_RESET),
@@ -415,6 +419,7 @@ begin
 		MOSI => zc_sd_di,
 		MISO => SD_DO
 	);
+	end generate G_ZCCONTROLLER;
 
 	-- share SD card between DivMMC / ZC
 	N_SD_CS <= divmmc_sd_cs_n when enable_divmmc else zc_sd_cs_n when enable_zcontroller else '1';
@@ -464,29 +469,34 @@ begin
 	);
 	
 	-- scandoubler
-	U6: entity work.vga_pal 
+	U6: entity work.scan_convert 
 	port map (
-		RGBI_IN => rgb & i,
-      HSYNC_IN => hsync,
-		VSYNC_IN => vsync,
-		F28 => CLK28,
-		F14 => CLK_14,
-		R_VGA => r_vga,
-		G_VGA => g_vga,
-		B_VGA => b_vga,
-		HSYNC_VGA => hsync_vga,
-		VSYNC_VGA => vsync_vga,
-		A => VA(9 downto 0),
-		WE => N_VWE,
-		D => VD
+		I_VIDEO => rgb & i,
+		
+      I_HSYNC => hsync,
+		I_VSYNC => vsync,
+		
+		CLK_x2 => CLK28,
+		CLK => not(CLK_14),
+		
+		O_RED => vga_red,
+		O_GREEN => vga_green,
+		O_BLUE => vga_blue,
+
+		O_HSYNC => hsync_vga,
+		O_VSYNC => vsync_vga,
+		
+		VA => VA(9 downto 0),
+		VWE => N_VWE,
+		VDD => VD
 	);	
 	
-	VA(14 downto 10) <= (others => '0');
+	VA(14 downto 10) <= (others => '1');
 	
 	-- Share VGA connector between RGB / VGA modes
-	VGA_R <= r_vga when enable_vga else rgb(2) & i;
-	VGA_G <= g_vga when enable_vga else rgb(1) & i;
-	VGA_B <= b_vga when enable_vga else rgb(0) & i;
+	VGA_R <= vga_red when enable_vga else rgb(2) & i;
+	VGA_G <= vga_green when enable_vga else rgb(1) & i;
+	VGA_B <= vga_blue when enable_vga else rgb(0) & i;
 	VGA_HSYNC <= hsync_vga when enable_vga else hsync;
 	VGA_VSYNC <= vsync_vga when enable_vga else vsync;
 	

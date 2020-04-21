@@ -167,7 +167,7 @@ begin
 						VIDEO_I <= '0';
 					end if;
 				
-				else --elsif (timex_hires = '0' and ENA7 = '1') then 
+				elsif (TURBO = '1' or ENA7 = '1') then 
 					-- standard RGB
 					if( shift_r(7) xor ( attr_r(7) and invert(4) ) ) = '1' then -- fg pixel
 						VIDEO_B <= attr_r(0);
@@ -193,7 +193,7 @@ begin
 					VIDEO_R <= not timex_pallette(1);
 					VIDEO_G <= not timex_pallette(0);
 					VIDEO_I <= '0';
-				else --elsif ENA7 = '1' and timex_hires = '0' then -- std border
+				elsif (TURBO = '1' or ENA7 = '1') then -- std border
 					-- standard RGB
 					VIDEO_B <= BORDER(0);
 					VIDEO_R <= BORDER(1);
@@ -274,7 +274,15 @@ begin
 	paper <= '0' when hor_cnt(5) = '0' and ver_cnt(5) = '0' and ( ver_cnt(4) = '0' or ver_cnt(3) = '0' ) else '1';
 
 	HCNT0 <= chr_col_cnt(0);
-
 	INT <= int_sig;
+
+	--process (CLK, ENA7)
+	--begin
+	--	if (rising_edge(CLK)) then
+	--		if (TURBO = '1' or ENA7 = '1') then
+	--			INT <= int_sig;
+	--		end if;
+	--	end if;
+	--end process;
 
 end architecture;
